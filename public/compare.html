@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wake Up Better - Architecture Comparison</title>
+  <!-- Silero VAD for accurate speech detection -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.wasm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/bundle.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding: 20px;
+    }
+    h1 { text-align: center; margin-bottom: 10px; font-weight: 300; }
+    .subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 15px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .panel h2 {
+      font-size: 1.2rem;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .panel.realtime h2 { color: #4ecdc4; }
+    .panel.chained h2 { color: #f7d794; }
+    .panel.gpt-driven h2 { color: #a29bfe; }
+
+    .badge {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.1);
+    }
+
+    .config-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    select {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.3);
+      color: #fff;
+      font-size: 0.9rem;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    button {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .start-btn {
+      background: linear-gradient(135deg, #4ecdc4, #44a08d);
+      color: #fff;
+    }
+    .start-btn:hover:not(:disabled) { transform: translateY(-2px); }
+
+    .end-btn {
+      background: rgba(255, 100, 100, 0.2);
+      color: #ff6b6b;
+      border: 1px solid #ff6b6b;
+    }
+
+    .status {
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 0.85rem;
+    }
+    .status.idle { background: rgba(100,100,100,0.2); color: #888; }
+    .status.active { background: rgba(78, 205, 196, 0.2); color: #4ecdc4; }
+    .status.speaking { background: rgba(247, 215, 148, 0.2); color: #f7d794; }
+    .status.error { background: rgba(255, 100, 100, 0.2); color: #ff6b6b; }
+
+    .transcript {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 15px;
+      height: 200px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+      margin-bottom: 15px;
+    }
+    .transcript .agent { color: #4ecdc4; }
+    .transcript .user { color: #f7d794; }
+    .transcript p { margin-bottom: 8px; }
+
+    .brain-state {
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 0.75rem;
+      font-family: monospace;
+    }
+    .brain-state h3 {
+      font-size: 0.8rem;
+      margin-bottom: 8px;
+      color: #888;
+    }
+    .brain-state .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+    }
+
+    .latency {
+      font-size: 0.8rem;
+      color: #888;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 1200px) {
+      .comparison-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 800px) {
+      .comparison-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🔬 Architecture Comparison</h1>
+  <p class="subtitle">Realtime API vs Chained + Brain State Machine vs Chained + GPT-Driven</p>
+
+  <div class="comparison-grid">
+    <!-- REALTIME PANEL -->
+    <div class="panel realtime">
+      <h2>⚡ Realtime API <span class="badge">Speech-to-Speech</span></h2>
+
+      <div class="config-row">
+        <select id="rt-persona">
+          <option value="zen-guide">🧘 Zen Guide</option>
+          <option value="morning-coach" selected>💪 Morning Coach</option>
+          <option value="strict-sergeant">🔥 Strict Sergeant</option>
+        </select>
+        <select id="rt-voice">
+          <option value="soft-female">Soft Female</option>
+          <option value="warm-male">Warm Male</option>
+          <option value="energetic-female" selected>Energetic Female</option>
+          <option value="energetic-male">Energetic Male</option>
+        </select>
+      </div>
+
+      <div class="config-row">
+        <button class="start-btn" id="rt-start">Start Session</button>
+        <button class="end-btn" id="rt-end" disabled>End</button>
+      </div>
+
+      <div class="status idle" id="rt-status">Idle - Click Start to begin</div>
+
+      <div class="transcript" id="rt-transcript">
+        <em style="color: #666;">Transcript will appear here...</em>
+      </div>
+
+      <div class="brain-state">
+        <h3>Session State</h3>
+        <div class="row"><span>Phase:</span><span id="rt-phase">-</span></div>
+        <div class="row"><span>Escalation:</span><span id="rt-escalation">-</span></div>
+        <div class="row"><span>Responsiveness:</span><span id="rt-responsiveness">-</span></div>
+      </div>
+
+      <div class="latency" id="rt-latency">Latency: ~50-200ms (real-time)</div>
+    </div>
+
+    <!-- CHAINED PANEL -->
+    <div class="panel chained">
+      <h2>🔗 Chained API <span class="badge">STT → GPT → TTS</span></h2>
+
+      <div class="config-row">
+        <select id="ch-persona">
+          <option value="zen-guide">🧘 Zen Guide</option>
+          <option value="morning-coach" selected>💪 Morning Coach</option>
+          <option value="strict-sergeant">🔥 Strict Sergeant</option>
+        </select>
+        <select id="ch-voice">
+          <option value="soft-female">Soft Female</option>
+          <option value="warm-male">Warm Male</option>
+          <option value="energetic-female" selected>Energetic Female</option>
+          <option value="energetic-male">Energetic Male</option>
+        </select>
+      </div>
+
+      <div class="config-row">
+        <button class="start-btn" id="ch-start">Start Session</button>
+        <button class="end-btn" id="ch-end" disabled>End</button>
+      </div>
+
+      <div class="status idle" id="ch-status">Idle - Click Start to begin</div>
+
+      <div class="transcript" id="ch-transcript">
+        <em style="color: #666;">Transcript will appear here...</em>
+      </div>
+
+      <div class="brain-state">
+        <h3>Brain State (Full Control)</h3>
+        <div class="row"><span>Phase:</span><span id="ch-phase">-</span></div>
+        <div class="row"><span>Escalation:</span><span id="ch-escalation">-</span></div>
+        <div class="row"><span>Responsiveness:</span><span id="ch-responsiveness">-</span></div>
+        <div class="row"><span>Tools Used:</span><span id="ch-tools">-</span></div>
+      </div>
+
+      <div class="latency" id="ch-latency">Latency: ~1-2 seconds per turn</div>
+    </div>
+
+    <!-- GPT-DRIVEN PANEL -->
+    <div class="panel gpt-driven">
+      <h2>🧠 GPT-Driven <span class="badge">Let GPT Decide</span></h2>
+
+      <div class="config-row">
+        <select id="gpt-persona">
+          <option value="zen-guide" selected>🧘 Zen Guide</option>
+          <option value="morning-coach">💪 Morning Coach</option>
+          <option value="strict-sergeant">🔥 Strict Sergeant</option>
+        </select>
+        <select id="gpt-voice">
+          <option value="soft-female" selected>Soft Female</option>
+          <option value="warm-male">Warm Male</option>
+          <option value="energetic-female">Energetic Female</option>
+          <option value="energetic-male">Energetic Male</option>
+        </select>
+      </div>
+
+      <div class="config-row">
+        <button class="start-btn" id="gpt-start">Start Session</button>
+        <button class="end-btn" id="gpt-end" disabled>End</button>
+      </div>
+
+      <div class="status idle" id="gpt-status">Idle - Click Start to begin</div>
+
+      <div class="transcript" id="gpt-transcript">
+        <em style="color: #666;">Transcript will appear here...</em>
+      </div>
+
+      <div class="brain-state">
+        <h3>GPT State (No State Machine)</h3>
+        <div class="row"><span>Turn Count:</span><span id="gpt-turns">0</span></div>
+        <div class="row"><span>Silences:</span><span id="gpt-silences">0</span></div>
+        <div class="row"><span>User Responses:</span><span id="gpt-responses">0</span></div>
+      </div>
+
+      <div class="latency" id="gpt-latency">Latency: ~1-2 seconds per turn</div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // CHAINED SESSION (simpler to implement first)
+    // ============================================
+    let chSession = null;
+    let chAudioContext = null;
+    let chRecording = false;
+    let chMediaRecorder = null;
+    let chAudioChunks = [];
+    let chSilenceTimer = null;
+    let chVad = null;  // Silero VAD instance
+    let chPendingSpeechAudio = null;  // Audio from VAD onSpeechEnd
+
+    const chStartBtn = document.getElementById('ch-start');
+    const chEndBtn = document.getElementById('ch-end');
+    const chStatus = document.getElementById('ch-status');
+    const chTranscript = document.getElementById('ch-transcript');
+
+    chStartBtn.addEventListener('click', startChainedSession);
+    chEndBtn.addEventListener('click', endChainedSession);
+
+    async function startChainedSession() {
+      const persona = document.getElementById('ch-persona').value;
+      const voice = document.getElementById('ch-voice').value;
+
+      chStatus.textContent = 'Creating session...';
+      chStatus.className = 'status active';
+      chStartBtn.disabled = true;
+
+      try {
+        // Create session
+        const res = await fetch('/api/chained/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            personaId: persona,
+            voiceId: voice,
+            preferences: { includeNews: true, includeWeather: true, includeCalendar: true },
+            context: {
+              weather: 'Partly cloudy, 68°F. A pleasant morning.',
+              calendar: 'You have a team standup at 9:30am and a project review at 2pm.',
+            },
+          }),
+        });
+
+        chSession = await res.json();
+        console.log('[Chained] Session created:', chSession);
+
+        if (chSession.error) {
+          throw new Error(chSession.error);
+        }
+
+        chEndBtn.disabled = false;
+
+        // Initialize AudioContext early (must be after user interaction)
+        if (!chAudioContext) {
+          chAudioContext = new AudioContext({ sampleRate: 24000 });
+        }
+        if (chAudioContext.state === 'suspended') {
+          await chAudioContext.resume();
+        }
+        console.log('[Chained] AudioContext ready:', chAudioContext.state);
+
+        // Get greeting
+        chStatus.textContent = 'Generating greeting...';
+        console.log('[Chained] Fetching greeting...');
+        const startTime = Date.now();
+        const greetRes = await fetch(`/api/chained/session/${chSession.sessionId}/greeting`, {
+          method: 'POST',
+        });
+        const greetData = await greetRes.json();
+        console.log('[Chained] Greeting response:', greetData);
+        const latency = Date.now() - startTime;
+
+        if (greetData.error) {
+          throw new Error(greetData.error);
+        }
+
+        document.getElementById('ch-latency').textContent = `Latency: ${latency}ms`;
+        updateChainedBrainState(greetData.brainState);
+
+        // Play greeting and wait for it to finish
+        chStatus.textContent = 'Speaking...';
+        chStatus.className = 'status speaking';
+        addToTranscript('ch-transcript', 'agent', greetData.text);
+
+        console.log('[Chained] Playing greeting audio, size:', greetData.audio?.length || 0);
+        if (greetData.audio && greetData.audio.length > 0) {
+          await playChainedAudioAndWait(greetData.audio);
+        } else {
+          console.error('[Chained] No audio data in greeting response!');
+          // Continue anyway - at least show the text
+        }
+
+        // Setup audio recording AFTER greeting is done
+        await setupChainedRecording();
+        chStatus.textContent = 'Listening... speak now';
+        chStatus.className = 'status active';
+
+      } catch (error) {
+        console.error('Failed to start chained session:', error);
+        chStatus.textContent = 'Error: ' + error.message;
+        chStatus.className = 'status error';
+        chStartBtn.disabled = false;
+      }
+    }
+
+    let chStream = null;
+    let chIsProcessing = false;
+    let chSpeechDetected = false;
+
+    // Global silence timer functions (chSilenceTimer declared above)
+    function resetChSilenceTimer() {
+      if (chSilenceTimer) clearTimeout(chSilenceTimer);
+      if (chSession) {
+        chSilenceTimer = setTimeout(handleChainedSilence, 15000);
+        console.log('[Chained] Silence timer reset (15s)');
+      }
+    }
+
+    async function handleChainedSilence() {
+      if (!chSession || chIsProcessing || chRecording) {
+        resetChSilenceTimer();
+        return;
+      }
+
+      console.log('[Chained] Silence detected, triggering re-engagement');
+      chIsProcessing = true;
+      chStatus.textContent = 'Re-engaging...';
+      chStatus.className = 'status speaking';
+
+      try {
+        const res = await fetch(`/api/chained/session/${chSession.sessionId}/silence`, {
+          method: 'POST',
+        });
+        const data = await res.json();
+
+        if (data.response) {
+          addToTranscript('ch-transcript', 'agent', data.response);
+          updateChainedBrainState(data.brainState);
+          await playChainedAudioAndWait(data.audio);
+        }
+
+        chStatus.textContent = 'Listening...';
+        chStatus.className = 'status active';
+        chIsProcessing = false;
+        resetChSilenceTimer();
+      } catch (error) {
+        console.error('[Chained] Silence handling error:', error);
+        chIsProcessing = false;
+        resetChSilenceTimer();
+      }
+    }
+
+    async function setupChainedRecording() {
+      console.log('[Chained] Setting up Silero VAD for speech detection...');
+      chStatus.textContent = 'Loading VAD model...';
+
+      try {
+        // Initialize Silero VAD - it handles microphone access internally
+        chVad = await vad.MicVAD.new({
+          // Called when speech starts
+          onSpeechStart: () => {
+            if (chIsProcessing) {
+              console.log('[VAD] Speech detected but processing, ignoring');
+              return;
+            }
+            console.log('[VAD] 🎤 Speech started');
+            chStatus.textContent = 'Listening to speech...';
+            chStatus.className = 'status speaking';
+            chSpeechDetected = true;
+            resetChSilenceTimer();
+          },
+
+          // Called when speech ends, with the audio data
+          onSpeechEnd: async (audio) => {
+            // audio is Float32Array at 16kHz sample rate
+            console.log(`[VAD] 🔇 Speech ended, got ${audio.length} samples (${(audio.length / 16000).toFixed(2)}s)`);
+
+            if (chIsProcessing) {
+              console.log('[VAD] Already processing, ignoring this speech segment');
+              return;
+            }
+
+            // Skip very short utterances (less than 0.3 seconds)
+            if (audio.length < 4800) {
+              console.log('[VAD] Speech too short, ignoring');
+              chStatus.textContent = 'Listening... (Silero VAD)';
+              chStatus.className = 'status active';
+              return;
+            }
+
+            // Convert Float32Array to WAV blob for sending to API
+            chPendingSpeechAudio = audio;
+            await processVadSpeech(audio);
+          },
+
+          // VAD configuration
+          positiveSpeechThreshold: 0.5,  // Confidence threshold for speech
+          negativeSpeechThreshold: 0.35, // Confidence threshold for non-speech
+          redemptionFrames: 8,           // Frames to wait before ending speech
+          preSpeechPadFrames: 1,         // Frames to include before speech
+          minSpeechFrames: 3,            // Minimum frames to count as speech
+
+          // Asset paths for ONNX runtime
+          onnxWASMBasePath: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/",
+          baseAssetPath: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/",
+        });
+
+        console.log('[Chained] Silero VAD initialized successfully');
+        chVad.start();
+        console.log('[Chained] VAD listening started');
+
+        chStatus.textContent = 'Listening... (Silero VAD)';
+        chStatus.className = 'status active';
+
+        // Start silence timer
+        resetChSilenceTimer();
+
+      } catch (err) {
+        console.error('[Chained] Failed to initialize Silero VAD:', err);
+        chStatus.textContent = 'VAD initialization failed - check console';
+        chStatus.className = 'status error';
+      }
+    }
+
+    // Convert Float32Array (16kHz) to WAV blob
+    function float32ToWavBlob(float32Array, sampleRate = 16000) {
+      const buffer = new ArrayBuffer(44 + float32Array.length * 2);
+      const view = new DataView(buffer);
+
+      // WAV header
+      const writeString = (offset, string) => {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      };
+
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + float32Array.length * 2, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true); // Subchunk1Size
+      view.setUint16(20, 1, true);  // AudioFormat (PCM)
+      view.setUint16(22, 1, true);  // NumChannels
+      view.setUint32(24, sampleRate, true); // SampleRate
+      view.setUint32(28, sampleRate * 2, true); // ByteRate
+      view.setUint16(32, 2, true);  // BlockAlign
+      view.setUint16(34, 16, true); // BitsPerSample
+      writeString(36, 'data');
+      view.setUint32(40, float32Array.length * 2, true);
+
+      // Convert Float32 to Int16
+      const offset = 44;
+      for (let i = 0; i < float32Array.length; i++) {
+        const s = Math.max(-1, Math.min(1, float32Array[i]));
+        view.setInt16(offset + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      }
+
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    // Process speech detected by VAD
+    async function processVadSpeech(audioData) {
+      if (!chSession || chIsProcessing) return;
+
+      chIsProcessing = true;
+      chStatus.textContent = 'Processing speech...';
+      chStatus.className = 'status active';
+
+      try {
+        // Convert to WAV blob
+        const wavBlob = float32ToWavBlob(audioData, 16000);
+        console.log(`[Chained] Created WAV blob: ${wavBlob.size} bytes`);
+
+        // Convert to base64
+        const base64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUrl = reader.result;
+            const base64Data = dataUrl.split(',')[1];
+            resolve(base64Data);
+          };
+          reader.readAsDataURL(wavBlob);
+        });
+
+        // Send to API
+        const res = await fetch(`/api/chained/session/${chSession.sessionId}/respond`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio: base64 }),
+        });
+
+        const data = await res.json();
+        console.log(`[Chained] API response - transcript: "${data.transcript}"`);
+
+        // Update brain state display
+        if (data.brainState) {
+          updateChainedBrainState(data.brainState);
+        }
+
+        // Show transcript
+        if (data.transcript) {
+          addToTranscript('ch-transcript', 'user', data.transcript);
+        }
+
+        // Play response if we got one
+        if (data.response && data.audio) {
+          addToTranscript('ch-transcript', 'agent', data.response);
+          await playChainedAudio(data.audio);
+        }
+
+        chStatus.textContent = 'Listening... (Silero VAD)';
+        chStatus.className = 'status active';
+        resetChSilenceTimer();
+
+      } catch (error) {
+        console.error('[Chained] Error processing VAD speech:', error);
+        chStatus.textContent = 'Error - check console';
+      } finally {
+        chIsProcessing = false;
+      }
+    }
+
+    // Old amplitude-based recording functions removed - now using Silero VAD
+
+    async function playChainedAudio(base64Audio) {
+      return playChainedAudioAndWait(base64Audio);
+    }
+
+    async function playChainedAudioAndWait(base64Audio) {
+      if (!chAudioContext) {
+        console.error('[Chained] No AudioContext for playback');
+        return;
+      }
+
+      // Decode base64 to binary
+      const audioData = atob(base64Audio);
+      const arrayBuffer = new ArrayBuffer(audioData.length);
+      const view = new Uint8Array(arrayBuffer);
+      for (let i = 0; i < audioData.length; i++) {
+        view[i] = audioData.charCodeAt(i);
+      }
+
+      console.log('[Chained] Playing audio, bytes:', arrayBuffer.byteLength);
+
+      // The server sends raw PCM 16-bit mono at 24kHz
+      // Convert directly to Float32 for Web Audio API
+      return new Promise((resolve) => {
+        try {
+          const pcmData = new Int16Array(arrayBuffer);
+          const float32Data = new Float32Array(pcmData.length);
+          for (let i = 0; i < pcmData.length; i++) {
+            float32Data[i] = pcmData[i] / 32768;
+          }
+
+          // Create audio buffer at 24kHz (OpenAI TTS sample rate)
+          const audioBuffer = chAudioContext.createBuffer(1, float32Data.length, 24000);
+          audioBuffer.getChannelData(0).set(float32Data);
+
+          const source = chAudioContext.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(chAudioContext.destination);
+          source.onended = () => {
+            console.log('[Chained] Audio playback finished');
+            setTimeout(resolve, 200); // Small buffer after playback
+          };
+          source.start();
+          console.log('[Chained] Audio playback started, duration:', audioBuffer.duration, 'seconds');
+        } catch (e) {
+          console.error('[Chained] Audio playback error:', e);
+          resolve(); // Don't block on error
+        }
+      });
+    }
+
+    function updateChainedBrainState(state) {
+      if (!state) return;
+      document.getElementById('ch-phase').textContent = state.phase || '-';
+      document.getElementById('ch-escalation').textContent = `${state.escalationLevel}/4`;
+      document.getElementById('ch-responsiveness').textContent = state.responsiveness || '-';
+      document.getElementById('ch-tools').textContent = (state.toolsUsed || []).slice(-3).join(', ') || '-';
+    }
+
+    function endChainedSession() {
+      // Stop VAD
+      if (chVad) {
+        chVad.pause();
+        chVad = null;
+        console.log('[Chained] VAD stopped');
+      }
+      // Clear silence timer
+      if (chSilenceTimer) {
+        clearTimeout(chSilenceTimer);
+        chSilenceTimer = null;
+      }
+      // Delete session
+      if (chSession) {
+        fetch(`/api/chained/session/${chSession.sessionId}`, { method: 'DELETE' });
+      }
+      chSession = null;
+      chRecording = false;
+      chIsProcessing = false;
+      chStatus.textContent = 'Idle';
+      chStatus.className = 'status idle';
+      chStartBtn.disabled = false;
+      chEndBtn.disabled = true;
+    }
+
+    // ============================================
+    // REALTIME SESSION (reuse from main page)
+    // ============================================
+    let rtWs = null;
+    let rtAudioContext = null;
+    let rtMediaStream = null;
+    let rtIsAgentSpeaking = false;
+
+    const rtStartBtn = document.getElementById('rt-start');
+    const rtEndBtn = document.getElementById('rt-end');
+    const rtStatus = document.getElementById('rt-status');
+    const rtTranscript = document.getElementById('rt-transcript');
+
+    rtStartBtn.addEventListener('click', startRealtimeSession);
+    rtEndBtn.addEventListener('click', endRealtimeSession);
+
+    async function startRealtimeSession() {
+      const persona = document.getElementById('rt-persona').value;
+      const voice = document.getElementById('rt-voice').value;
+
+      rtStatus.textContent = 'Connecting...';
+      rtStatus.className = 'status active';
+      rtStartBtn.disabled = true;
+
+      try {
+        rtMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        rtAudioContext = new AudioContext({ sampleRate: 24000 });
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        rtWs = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+        rtWs.onopen = () => {
+          rtWs.send(JSON.stringify({
+            type: 'start',
+            personaId: persona,
+            voiceId: voice,
+            preferences: { includeNews: true, includeWeather: true, includeCalendar: true },
+            context: {
+              weather: 'Partly cloudy, 68°F. A pleasant morning.',
+              calendar: 'You have a team standup at 9:30am and a project review at 2pm.',
+            },
+          }));
+          rtEndBtn.disabled = false;
+          setupRealtimeAudio();
+        };
+
+        rtWs.onmessage = handleRealtimeMessage;
+        rtWs.onclose = () => {
+          rtStatus.textContent = 'Disconnected';
+          rtStatus.className = 'status idle';
+        };
+
+      } catch (error) {
+        console.error('Failed to start realtime session:', error);
+        rtStatus.textContent = 'Error: ' + error.message;
+        rtStatus.className = 'status error';
+        rtStartBtn.disabled = false;
+      }
+    }
+
+    function setupRealtimeAudio() {
+      const source = rtAudioContext.createMediaStreamSource(rtMediaStream);
+      const processor = rtAudioContext.createScriptProcessor(4096, 1, 1);
+
+      processor.onaudioprocess = (e) => {
+        if (rtWs && rtWs.readyState === WebSocket.OPEN && !rtIsAgentSpeaking) {
+          const inputData = e.inputBuffer.getChannelData(0);
+          const int16Data = new Int16Array(inputData.length);
+          for (let i = 0; i < inputData.length; i++) {
+            int16Data[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+          }
+          const base64 = btoa(String.fromCharCode(...new Uint8Array(int16Data.buffer)));
+          rtWs.send(JSON.stringify({ type: 'audio', data: base64 }));
+        }
+      };
+
+      source.connect(processor);
+      processor.connect(rtAudioContext.destination);
+    }
+
+    let rtAudioQueue = [];
+    let rtIsPlaying = false;
+
+    function handleRealtimeMessage(event) {
+      const data = JSON.parse(event.data);
+
+      switch (data.type) {
+        case 'session.ready':
+          rtStatus.textContent = `${data.persona.name} active`;
+          rtStatus.className = 'status active';
+          break;
+
+        case 'response.audio.delta':
+          rtIsAgentSpeaking = true;
+          if (data.delta) playRealtimeAudio(data.delta);
+          break;
+
+        case 'response.audio_transcript.delta':
+          rtIsAgentSpeaking = true;
+          if (data.delta) {
+            const lastAgent = rtTranscript.querySelector('.agent-current');
+            if (lastAgent) {
+              lastAgent.textContent += data.delta;
+            } else {
+              addToTranscript('rt-transcript', 'agent', data.delta, true);
+            }
+          }
+          rtStatus.textContent = 'Speaking...';
+          rtStatus.className = 'status speaking';
+          break;
+
+        case 'response.audio_transcript.done':
+          const current = rtTranscript.querySelector('.agent-current');
+          if (current) current.classList.remove('agent-current');
+          break;
+
+        case 'response.done':
+          // Wait for audio queue to finish before enabling mic
+          const waitForAudio = () => {
+            if (rtAudioQueue.length > 0 || rtIsPlaying) {
+              setTimeout(waitForAudio, 100);
+            } else {
+              // Add small buffer after audio finishes
+              setTimeout(() => {
+                rtIsAgentSpeaking = false;
+                rtStatus.textContent = 'Listening...';
+                rtStatus.className = 'status active';
+                console.log('[Realtime] Mic re-enabled after audio playback');
+              }, 300);
+            }
+          };
+          waitForAudio();
+          break;
+
+        case 'conversation.item.input_audio_transcription.completed':
+          if (data.transcript) {
+            addToTranscript('rt-transcript', 'user', data.transcript);
+          }
+          break;
+      }
+    }
+
+    function playRealtimeAudio(base64Data) {
+      if (!rtAudioContext) return;
+
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const int16Data = new Int16Array(bytes.buffer);
+      const float32Data = new Float32Array(int16Data.length);
+      for (let i = 0; i < int16Data.length; i++) {
+        float32Data[i] = int16Data[i] / 32768;
+      }
+
+      const audioBuffer = rtAudioContext.createBuffer(1, float32Data.length, 24000);
+      audioBuffer.getChannelData(0).set(float32Data);
+
+      rtAudioQueue.push(audioBuffer);
+      if (!rtIsPlaying) playNextRealtimeAudio();
+    }
+
+    function playNextRealtimeAudio() {
+      if (rtAudioQueue.length === 0) {
+        rtIsPlaying = false;
+        return;
+      }
+      rtIsPlaying = true;
+      const buffer = rtAudioQueue.shift();
+      const source = rtAudioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(rtAudioContext.destination);
+      source.onended = playNextRealtimeAudio;
+      source.start();
+    }
+
+    function endRealtimeSession() {
+      if (rtWs) {
+        rtWs.send(JSON.stringify({ type: 'end' }));
+        rtWs.close();
+      }
+      if (rtMediaStream) rtMediaStream.getTracks().forEach(t => t.stop());
+      if (rtAudioContext) rtAudioContext.close();
+      rtWs = null;
+      rtAudioContext = null;
+      rtMediaStream = null;
+      rtStatus.textContent = 'Idle';
+      rtStatus.className = 'status idle';
+      rtStartBtn.disabled = false;
+      rtEndBtn.disabled = true;
+    }
+
+    // ============================================
+    // GPT-DRIVEN SESSION (Let GPT decide everything)
+    // ============================================
+    let gptSession = null;
+    let gptAudioContext = null;
+    let gptVad = null;
+    let gptIsProcessing = false;
+    let gptSilenceTimer = null;
+    let gptTurnCount = 0;
+    let gptSilenceCount = 0;
+    let gptResponseCount = 0;
+
+    const gptStartBtn = document.getElementById('gpt-start');
+    const gptEndBtn = document.getElementById('gpt-end');
+    const gptStatus = document.getElementById('gpt-status');
+    const gptTranscript = document.getElementById('gpt-transcript');
+
+    gptStartBtn.addEventListener('click', startGptSession);
+    gptEndBtn.addEventListener('click', endGptSession);
+
+    async function startGptSession() {
+      const persona = document.getElementById('gpt-persona').value;
+      const voice = document.getElementById('gpt-voice').value;
+
+      gptStatus.textContent = 'Creating session...';
+      gptStatus.className = 'status active';
+      gptStartBtn.disabled = true;
+      gptTurnCount = 0;
+      gptSilenceCount = 0;
+      gptResponseCount = 0;
+      updateGptState();
+
+      try {
+        // Create GPT-driven session
+        const res = await fetch('/api/gpt-driven/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            personaId: persona,
+            voiceId: voice,
+            context: {
+              weather: 'Partly cloudy, 68°F. A pleasant morning with a light breeze.',
+              calendar: 'You have a team standup at 9:30am and a project review at 2pm.',
+            },
+          }),
+        });
+
+        gptSession = await res.json();
+        console.log('[GPT-Driven] Session created:', gptSession);
+
+        if (gptSession.error) {
+          throw new Error(gptSession.error);
+        }
+
+        gptEndBtn.disabled = false;
+
+        // Initialize AudioContext
+        if (!gptAudioContext) {
+          gptAudioContext = new AudioContext({ sampleRate: 24000 });
+        }
+        if (gptAudioContext.state === 'suspended') {
+          await gptAudioContext.resume();
+        }
+
+        // Get greeting
+        gptStatus.textContent = 'Getting greeting...';
+        const greetRes = await fetch(`/api/gpt-driven/session/${gptSession.sessionId}/greeting`, {
+          method: 'POST',
+        });
+        const greetData = await greetRes.json();
+
+        addToTranscript('gpt-transcript', 'agent', greetData.text);
+        gptTurnCount++;
+        updateGptState();
+
+        // Play greeting
+        if (greetData.audio) {
+          await playGptAudio(greetData.audio);
+        }
+
+        // Setup VAD
+        await setupGptVad();
+
+      } catch (error) {
+        console.error('[GPT-Driven] Failed to start:', error);
+        gptStatus.textContent = 'Error: ' + error.message;
+        gptStatus.className = 'status error';
+        gptStartBtn.disabled = false;
+      }
+    }
+
+    async function setupGptVad() {
+      console.log('[GPT-Driven] Setting up Silero VAD...');
+      gptStatus.textContent = 'Loading VAD...';
+
+      try {
+        gptVad = await vad.MicVAD.new({
+          onSpeechStart: () => {
+            if (gptIsProcessing) return;
+            console.log('[GPT-VAD] 🎤 Speech started');
+            gptStatus.textContent = 'Listening...';
+            gptStatus.className = 'status speaking';
+            resetGptSilenceTimer();
+          },
+
+          onSpeechEnd: async (audio) => {
+            console.log(`[GPT-VAD] 🔇 Speech ended, ${audio.length} samples`);
+            if (gptIsProcessing) return;
+            if (audio.length < 4800) {
+              console.log('[GPT-VAD] Too short, ignoring');
+              gptStatus.textContent = 'Listening... (Silero VAD)';
+              gptStatus.className = 'status active';
+              return;
+            }
+            await processGptSpeech(audio);
+          },
+
+          positiveSpeechThreshold: 0.5,
+          negativeSpeechThreshold: 0.35,
+          redemptionFrames: 8,
+          preSpeechPadFrames: 1,
+          minSpeechFrames: 3,
+          onnxWASMBasePath: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/",
+          baseAssetPath: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/",
+        });
+
+        gptVad.start();
+        gptStatus.textContent = 'Listening... (Silero VAD)';
+        gptStatus.className = 'status active';
+        resetGptSilenceTimer();
+
+      } catch (err) {
+        console.error('[GPT-Driven] VAD failed:', err);
+        gptStatus.textContent = 'VAD failed';
+        gptStatus.className = 'status error';
+      }
+    }
+
+    function resetGptSilenceTimer() {
+      if (gptSilenceTimer) clearTimeout(gptSilenceTimer);
+      gptSilenceTimer = setTimeout(handleGptSilence, 20000); // 20 seconds
+    }
+
+    async function handleGptSilence() {
+      if (!gptSession || gptIsProcessing) {
+        resetGptSilenceTimer();
+        return;
+      }
+
+      console.log('[GPT-Driven] Silence detected, prompting...');
+      gptIsProcessing = true;
+      gptSilenceCount++;
+      updateGptState();
+
+      try {
+        const res = await fetch(`/api/gpt-driven/session/${gptSession.sessionId}/silence`, {
+          method: 'POST',
+        });
+        const data = await res.json();
+
+        addToTranscript('gpt-transcript', 'agent', data.text);
+        gptTurnCount++;
+        updateGptState();
+
+        if (data.audio) {
+          await playGptAudio(data.audio);
+        }
+
+        gptStatus.textContent = 'Listening... (Silero VAD)';
+        gptStatus.className = 'status active';
+        resetGptSilenceTimer();
+
+      } catch (error) {
+        console.error('[GPT-Driven] Silence handling error:', error);
+      } finally {
+        gptIsProcessing = false;
+      }
+    }
+
+    async function processGptSpeech(audioData) {
+      if (!gptSession || gptIsProcessing) return;
+
+      gptIsProcessing = true;
+      gptStatus.textContent = 'Processing...';
+      gptStatus.className = 'status active';
+
+      try {
+        const wavBlob = float32ToWavBlob(audioData, 16000);
+        const base64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.readAsDataURL(wavBlob);
+        });
+
+        const res = await fetch(`/api/gpt-driven/session/${gptSession.sessionId}/respond`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio: base64 }),
+        });
+
+        const data = await res.json();
+        console.log(`[GPT-Driven] Transcript: "${data.transcript}"`);
+
+        if (data.transcript) {
+          addToTranscript('gpt-transcript', 'user', data.transcript);
+          gptResponseCount++;
+        }
+
+        if (data.text) {
+          addToTranscript('gpt-transcript', 'agent', data.text);
+          gptTurnCount++;
+        }
+
+        updateGptState();
+
+        if (data.audio) {
+          await playGptAudio(data.audio);
+        }
+
+        gptStatus.textContent = 'Listening... (Silero VAD)';
+        gptStatus.className = 'status active';
+        resetGptSilenceTimer();
+
+      } catch (error) {
+        console.error('[GPT-Driven] Error:', error);
+      } finally {
+        gptIsProcessing = false;
+      }
+    }
+
+    async function playGptAudio(base64Audio) {
+      if (!gptAudioContext) return;
+
+      const audioData = atob(base64Audio);
+      const arrayBuffer = new ArrayBuffer(audioData.length);
+      const view = new Uint8Array(arrayBuffer);
+      for (let i = 0; i < audioData.length; i++) {
+        view[i] = audioData.charCodeAt(i);
+      }
+
+      // PCM 24kHz mono 16-bit
+      const samples = audioData.length / 2;
+      const audioBuffer = gptAudioContext.createBuffer(1, samples, 24000);
+      const channelData = audioBuffer.getChannelData(0);
+      const dataView = new DataView(arrayBuffer);
+      for (let i = 0; i < samples; i++) {
+        channelData[i] = dataView.getInt16(i * 2, true) / 32768;
+      }
+
+      return new Promise((resolve) => {
+        const source = gptAudioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(gptAudioContext.destination);
+        source.onended = resolve;
+        source.start();
+      });
+    }
+
+    function updateGptState() {
+      document.getElementById('gpt-turns').textContent = gptTurnCount;
+      document.getElementById('gpt-silences').textContent = gptSilenceCount;
+      document.getElementById('gpt-responses').textContent = gptResponseCount;
+    }
+
+    function endGptSession() {
+      if (gptVad) {
+        gptVad.pause();
+        gptVad = null;
+      }
+      if (gptSilenceTimer) {
+        clearTimeout(gptSilenceTimer);
+        gptSilenceTimer = null;
+      }
+      if (gptSession) {
+        fetch(`/api/gpt-driven/session/${gptSession.sessionId}`, { method: 'DELETE' });
+      }
+      gptSession = null;
+      gptIsProcessing = false;
+      gptStatus.textContent = 'Idle';
+      gptStatus.className = 'status idle';
+      gptStartBtn.disabled = false;
+      gptEndBtn.disabled = true;
+    }
+
+    // ============================================
+    // SHARED UTILS
+    // ============================================
+    function addToTranscript(transcriptId, role, text, isCurrent = false) {
+      const transcript = document.getElementById(transcriptId);
+      if (transcript.querySelector('em')) transcript.innerHTML = '';
+
+      const p = document.createElement('p');
+      p.className = role + (isCurrent ? ' agent-current' : '');
+      p.textContent = (role === 'user' ? 'You: ' : '') + text;
+      transcript.appendChild(p);
+      transcript.scrollTop = transcript.scrollHeight;
+    }
+  </script>
+</body>
+</html>

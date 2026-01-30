@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wake Up Better - Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 500px;
+      width: 100%;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-weight: 300;
+      font-size: 2rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 40px;
+      font-size: 0.9rem;
+    }
+
+    /* Setup Section */
+    .setup-section {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .setup-section h2 {
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: #ccc;
+    }
+
+    .option-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .option-card {
+      background: rgba(255, 255, 255, 0.08);
+      border: 2px solid transparent;
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .option-card:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .option-card.selected {
+      border-color: #4ecdc4;
+      background: rgba(78, 205, 196, 0.15);
+    }
+
+    .option-card h3 {
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    .option-card p {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    /* Voice Selection */
+    .voice-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .voice-card {
+      background: rgba(255, 255, 255, 0.08);
+      border: 2px solid transparent;
+      border-radius: 10px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .voice-card:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .voice-card.selected {
+      border-color: #4ecdc4;
+      background: rgba(78, 205, 196, 0.15);
+    }
+
+    .voice-card span {
+      font-size: 0.85rem;
+    }
+
+    /* Start Button */
+    .start-button {
+      width: 100%;
+      padding: 20px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #4ecdc4, #44a08d);
+      color: #fff;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 20px;
+    }
+
+    .start-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(78, 205, 196, 0.3);
+    }
+
+    .start-button:disabled {
+      background: #444;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Session View */
+    .session-view {
+      display: none;
+      text-align: center;
+    }
+
+    .session-view.active {
+      display: block;
+    }
+
+    .setup-view.hidden {
+      display: none;
+    }
+
+    /* Ambient Visualizer */
+    .visualizer {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(78, 205, 196, 0.3) 0%, transparent 70%);
+      margin: 40px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.1); opacity: 1; }
+    }
+
+    .visualizer.speaking {
+      animation: speaking 0.5s ease-in-out infinite;
+      background: radial-gradient(circle, rgba(78, 205, 196, 0.5) 0%, transparent 70%);
+    }
+
+    @keyframes speaking {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+
+    .visualizer-inner {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+    }
+
+    .status-text {
+      font-size: 1.2rem;
+      color: #4ecdc4;
+      margin-bottom: 20px;
+    }
+
+    .transcript {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      min-height: 100px;
+      text-align: left;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .transcript .agent {
+      color: #4ecdc4;
+    }
+
+    .transcript .user {
+      color: #f7d794;
+    }
+
+    .end-button {
+      padding: 16px 40px;
+      font-size: 1rem;
+      background: rgba(255, 100, 100, 0.2);
+      color: #ff6b6b;
+      border: 2px solid #ff6b6b;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .end-button:hover {
+      background: rgba(255, 100, 100, 0.3);
+    }
+
+    /* Mic Permission Notice */
+    .mic-notice {
+      background: rgba(255, 200, 100, 0.1);
+      border: 1px solid rgba(255, 200, 100, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 20px;
+      font-size: 0.85rem;
+      color: #f7d794;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌅 Wake Up Better</h1>
+    <p class="subtitle">Voice Agent Test Page</p>
+
+    <!-- Setup View -->
+    <div class="setup-view" id="setupView">
+      <div class="setup-section">
+        <h2>Choose Your Persona</h2>
+        <div class="option-grid" id="personaGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="setup-section">
+        <h2>Choose Your Voice</h2>
+        <div class="voice-grid" id="voiceGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <button class="start-button" id="startButton" disabled>
+        Start Wake-Up Session
+      </button>
+
+      <div class="mic-notice">
+        🎤 This will request microphone access to enable voice conversation.
+      </div>
+    </div>
+
+    <!-- Session View -->
+    <div class="session-view" id="sessionView">
+      <div class="visualizer" id="visualizer">
+        <div class="visualizer-inner">🌙</div>
+      </div>
+
+      <p class="status-text" id="statusText">Connecting...</p>
+
+      <div class="transcript" id="transcript">
+        <em style="color: #666;">Conversation will appear here...</em>
+      </div>
+
+      <button class="end-button" id="endButton">End Session</button>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // STATE
+    // ============================================
+    let selectedPersona = null;
+    let selectedVoice = null;
+    let ws = null;
+    let audioContext = null;
+    let mediaStream = null;
+    let audioWorklet = null;
+    let ambientAudio = null;
+    let isAgentSpeaking = false;  // Track when agent is speaking to mute mic input
+
+    // ============================================
+    // DOM ELEMENTS
+    // ============================================
+    const setupView = document.getElementById('setupView');
+    const sessionView = document.getElementById('sessionView');
+    const personaGrid = document.getElementById('personaGrid');
+    const voiceGrid = document.getElementById('voiceGrid');
+    const startButton = document.getElementById('startButton');
+    const endButton = document.getElementById('endButton');
+    const visualizer = document.getElementById('visualizer');
+    const statusText = document.getElementById('statusText');
+    const transcript = document.getElementById('transcript');
+
+    // ============================================
+    // LOAD OPTIONS
+    // ============================================
+    async function loadOptions() {
+      try {
+        // Load personas
+        const personasRes = await fetch('/api/personas');
+        const personas = await personasRes.json();
+
+        const personaEmojis = {
+          'zen-guide': '🧘',
+          'morning-coach': '💪',
+          'strict-sergeant': '🔥'
+        };
+
+        personaGrid.innerHTML = personas.map(p => `
+          <div class="option-card" data-id="${p.id}">
+            <h3>${personaEmojis[p.id] || '👤'} ${p.name}</h3>
+            <p>${p.description}</p>
+          </div>
+        `).join('');
+
+        // Load voices
+        const voicesRes = await fetch('/api/voices');
+        const voices = await voicesRes.json();
+
+        voiceGrid.innerHTML = voices.map(v => `
+          <div class="voice-card" data-id="${v.id}">
+            <span>${v.description}</span>
+          </div>
+        `).join('');
+
+        // Add click handlers
+        document.querySelectorAll('#personaGrid .option-card').forEach(card => {
+          card.addEventListener('click', () => {
+            document.querySelectorAll('#personaGrid .option-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedPersona = card.dataset.id;
+            updateStartButton();
+          });
+        });
+
+        document.querySelectorAll('#voiceGrid .voice-card').forEach(card => {
+          card.addEventListener('click', () => {
+            document.querySelectorAll('#voiceGrid .voice-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedVoice = card.dataset.id;
+            updateStartButton();
+          });
+        });
+
+        // Select defaults
+        document.querySelector('#personaGrid .option-card')?.click();
+        document.querySelector('#voiceGrid .voice-card')?.click();
+
+      } catch (error) {
+        console.error('Failed to load options:', error);
+        personaGrid.innerHTML = '<p style="color: #ff6b6b;">Failed to load personas. Is the server running?</p>';
+      }
+    }
+
+    function updateStartButton() {
+      startButton.disabled = !(selectedPersona && selectedVoice);
+    }
+
+    // ============================================
+    // AUDIO HANDLING
+    // ============================================
+    async function setupAudio() {
+      try {
+        // Request microphone access
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // Create audio context
+        audioContext = new AudioContext({ sampleRate: 24000 });
+
+        // Create source from microphone
+        const source = audioContext.createMediaStreamSource(mediaStream);
+
+        // Create script processor for capturing audio
+        const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+        processor.onaudioprocess = (e) => {
+          // Don't send mic audio while agent is speaking (prevents echo feedback)
+          if (ws && ws.readyState === WebSocket.OPEN && !isAgentSpeaking) {
+            const inputData = e.inputBuffer.getChannelData(0);
+            // Convert Float32 to Int16
+            const int16Data = new Int16Array(inputData.length);
+            for (let i = 0; i < inputData.length; i++) {
+              int16Data[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+            }
+            // Send as base64
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(int16Data.buffer)));
+            ws.send(JSON.stringify({ type: 'audio', data: base64 }));
+          }
+        };
+
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+
+        return true;
+      } catch (error) {
+        console.error('Failed to setup audio:', error);
+        alert('Microphone access is required for the voice agent to work.');
+        return false;
+      }
+    }
+
+    // Play audio from base64 PCM data
+    let audioQueue = [];
+    let isPlaying = false;
+
+    async function playAudio(base64Data) {
+      if (!audioContext) return;
+
+      // Decode base64 to Int16 array
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const int16Data = new Int16Array(bytes.buffer);
+
+      // Convert Int16 to Float32
+      const float32Data = new Float32Array(int16Data.length);
+      for (let i = 0; i < int16Data.length; i++) {
+        float32Data[i] = int16Data[i] / 32768;
+      }
+
+      // Create audio buffer
+      const audioBuffer = audioContext.createBuffer(1, float32Data.length, 24000);
+      audioBuffer.getChannelData(0).set(float32Data);
+
+      // Queue and play
+      audioQueue.push(audioBuffer);
+      if (!isPlaying) {
+        playNextInQueue();
+      }
+    }
+
+    function playNextInQueue() {
+      if (audioQueue.length === 0) {
+        isPlaying = false;
+        visualizer.classList.remove('speaking');
+        return;
+      }
+
+      isPlaying = true;
+      visualizer.classList.add('speaking');
+
+      const buffer = audioQueue.shift();
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      source.onended = playNextInQueue;
+      source.start();
+    }
+
+    // ============================================
+    // AMBIENT SOUND (Simple oscillator-based)
+    // ============================================
+    function startAmbient() {
+      if (!audioContext) return;
+
+      // Create a gentle ambient drone
+      const oscillator1 = audioContext.createOscillator();
+      const oscillator2 = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator1.type = 'sine';
+      oscillator1.frequency.setValueAtTime(174.61, audioContext.currentTime); // F3
+
+      oscillator2.type = 'sine';
+      oscillator2.frequency.setValueAtTime(261.63, audioContext.currentTime); // C4
+
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.05, audioContext.currentTime + 2);
+
+      oscillator1.connect(gainNode);
+      oscillator2.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator1.start();
+      oscillator2.start();
+
+      ambientAudio = { oscillator1, oscillator2, gainNode };
+
+      // Fade out ambient after 2 minutes
+      setTimeout(() => {
+        if (ambientAudio) {
+          ambientAudio.gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 10);
+        }
+      }, 120000);
+    }
+
+    function stopAmbient() {
+      if (ambientAudio) {
+        try {
+          ambientAudio.gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 1);
+          setTimeout(() => {
+            ambientAudio.oscillator1.stop();
+            ambientAudio.oscillator2.stop();
+            ambientAudio = null;
+          }, 1000);
+        } catch (e) {
+          // Already stopped
+        }
+      }
+    }
+
+    // ============================================
+    // WEBSOCKET CONNECTION
+    // ============================================
+    function connectWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        statusText.textContent = 'Connected. Starting session...';
+
+        // Start the session
+        ws.send(JSON.stringify({
+          type: 'start',
+          personaId: selectedPersona,
+          voiceId: selectedVoice,
+          preferences: {
+            includeNews: true,
+            includeWeather: true,
+            includeCalendar: true,
+          },
+          context: {
+            weather: 'Partly cloudy, 68°F. A pleasant morning.',
+            calendar: 'You have a team standup at 9:30am and a project review at 2pm.',
+          }
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        switch (data.type) {
+          case 'session.ready':
+            statusText.textContent = `${data.persona.name} is here to help you wake up`;
+            startAmbient();
+            break;
+
+          case 'response.audio.delta':
+            // Agent is sending audio - mute mic to prevent echo
+            isAgentSpeaking = true;
+            if (data.delta) {
+              playAudio(data.delta);
+            }
+            break;
+
+          case 'response.audio_transcript.delta':
+            // Agent is speaking - show in transcript
+            isAgentSpeaking = true;
+            if (data.delta) {
+              const lastAgent = transcript.querySelector('.agent-current');
+              if (lastAgent) {
+                lastAgent.textContent += data.delta;
+              } else {
+                const p = document.createElement('p');
+                p.className = 'agent agent-current';
+                p.textContent = data.delta;
+                // Clear placeholder
+                if (transcript.querySelector('em')) {
+                  transcript.innerHTML = '';
+                }
+                transcript.appendChild(p);
+                transcript.scrollTop = transcript.scrollHeight;
+              }
+            }
+            break;
+
+          case 'response.audio_transcript.done':
+            // Agent finished a statement
+            const current = transcript.querySelector('.agent-current');
+            if (current) {
+              current.classList.remove('agent-current');
+            }
+            break;
+
+          case 'response.done':
+            // Agent completely finished - wait for audio queue to drain before re-enabling mic
+            const waitForAudioQueue = () => {
+              if (audioQueue.length > 0 || isPlaying) {
+                setTimeout(waitForAudioQueue, 100);
+              } else {
+                // Add small buffer after audio finishes
+                setTimeout(() => {
+                  isAgentSpeaking = false;
+                  console.log('Mic re-enabled (agent finished speaking + audio done)');
+                }, 300);
+              }
+            };
+            waitForAudioQueue();
+            break;
+
+          case 'conversation.item.input_audio_transcription.completed':
+            // User said something
+            if (data.transcript) {
+              const p = document.createElement('p');
+              p.className = 'user';
+              p.textContent = `You: ${data.transcript}`;
+              transcript.appendChild(p);
+              transcript.scrollTop = transcript.scrollHeight;
+            }
+            break;
+
+          case 'session.ended':
+            statusText.textContent = 'Session ended';
+            break;
+
+          case 'error':
+            statusText.textContent = `Error: ${data.message}`;
+            break;
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket closed');
+        statusText.textContent = 'Disconnected';
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        statusText.textContent = 'Connection error';
+      };
+    }
+
+    // ============================================
+    // SESSION CONTROL
+    // ============================================
+    async function startSession() {
+      const audioReady = await setupAudio();
+      if (!audioReady) return;
+
+      setupView.classList.add('hidden');
+      sessionView.classList.add('active');
+
+      connectWebSocket();
+    }
+
+    function endSession() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'end' }));
+        ws.close();
+      }
+
+      stopAmbient();
+
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+      }
+
+      if (audioContext) {
+        audioContext.close();
+      }
+
+      // Reset state
+      ws = null;
+      audioContext = null;
+      mediaStream = null;
+      audioQueue = [];
+      isPlaying = false;
+
+      // Return to setup
+      sessionView.classList.remove('active');
+      setupView.classList.remove('hidden');
+      transcript.innerHTML = '<em style="color: #666;">Conversation will appear here...</em>';
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    startButton.addEventListener('click', startSession);
+    endButton.addEventListener('click', endSession);
+
+    loadOptions();
+  </script>
+</body>
+</html>

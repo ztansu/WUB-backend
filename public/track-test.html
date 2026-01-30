@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wake Up Better - Track Engine Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-weight: 300;
+      font-size: 2rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 30px;
+    }
+
+    /* Setup Section */
+    .setup-section {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .setup-section h2 {
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: #ccc;
+    }
+
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .option-card {
+      background: rgba(255, 255, 255, 0.08);
+      border: 2px solid transparent;
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .option-card:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .option-card.selected {
+      border-color: #4ecdc4;
+      background: rgba(78, 205, 196, 0.15);
+    }
+
+    .option-card h3 {
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    .option-card p {
+      font-size: 0.75rem;
+      color: #888;
+    }
+
+    /* Input fields */
+    .input-group {
+      margin-bottom: 15px;
+    }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 5px;
+      color: #ccc;
+      font-size: 0.9rem;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-size: 1rem;
+    }
+
+    /* Track Display */
+    .track-display {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .segment-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .segment-chip {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      background: rgba(255,255,255,0.1);
+      color: #888;
+    }
+
+    .segment-chip.active {
+      background: #4ecdc4;
+      color: #000;
+      font-weight: 600;
+    }
+
+    .segment-chip.done {
+      background: rgba(78, 205, 196, 0.3);
+      color: #4ecdc4;
+    }
+
+    /* Session View */
+    .session-view {
+      display: none;
+    }
+
+    .session-view.active {
+      display: block;
+    }
+
+    .setup-view.hidden {
+      display: none;
+    }
+
+    /* Visualizer */
+    .visualizer {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(78, 205, 196, 0.3) 0%, transparent 70%);
+      margin: 20px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.1); opacity: 1; }
+    }
+
+    .visualizer.speaking {
+      animation: speaking 0.5s ease-in-out infinite;
+      background: radial-gradient(circle, rgba(78, 205, 196, 0.5) 0%, transparent 70%);
+    }
+
+    @keyframes speaking {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+
+    .visualizer-inner {
+      font-size: 2.5rem;
+    }
+
+    .status-text {
+      text-align: center;
+      font-size: 1rem;
+      color: #4ecdc4;
+      margin-bottom: 10px;
+    }
+
+    .mode-badge {
+      text-align: center;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      display: inline-block;
+      margin: 0 auto 20px;
+    }
+
+    .mode-badge.track {
+      background: rgba(78, 205, 196, 0.2);
+      color: #4ecdc4;
+    }
+
+    .mode-badge.conversation {
+      background: rgba(247, 215, 148, 0.2);
+      color: #f7d794;
+    }
+
+    /* Transcript */
+    .transcript {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      min-height: 150px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .transcript .agent {
+      color: #4ecdc4;
+      margin-bottom: 10px;
+    }
+
+    .transcript .user {
+      color: #f7d794;
+      margin-bottom: 10px;
+    }
+
+    .transcript .segment-label {
+      color: #888;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      margin-top: 15px;
+      margin-bottom: 5px;
+    }
+
+    /* Buttons */
+    .start-button {
+      width: 100%;
+      padding: 16px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #4ecdc4, #44a08d);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .start-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(78, 205, 196, 0.3);
+    }
+
+    .start-button:disabled {
+      background: #444;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .end-button {
+      flex: 1;
+      padding: 12px;
+      font-size: 1rem;
+      background: rgba(255, 100, 100, 0.2);
+      color: #ff6b6b;
+      border: 2px solid #ff6b6b;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    .awake-button {
+      flex: 1;
+      padding: 12px;
+      font-size: 1rem;
+      background: rgba(100, 255, 100, 0.2);
+      color: #6bff6b;
+      border: 2px solid #6bff6b;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    /* Timer display */
+    .timer {
+      text-align: center;
+      color: #666;
+      font-size: 0.8rem;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌅 Track Engine Test</h1>
+    <p class="subtitle">Structured wake-up flow with conversation support</p>
+
+    <!-- Setup View -->
+    <div class="setup-view" id="setupView">
+      <div class="setup-section">
+        <h2>Choose Persona</h2>
+        <div class="option-grid" id="personaGrid">
+          <div class="option-card selected" data-id="zen-guide">
+            <h3>🧘 Zen Guide</h3>
+            <p>Poetic, meditative</p>
+          </div>
+          <div class="option-card" data-id="morning-coach">
+            <h3>💪 Morning Coach</h3>
+            <p>Warm, motivating</p>
+          </div>
+          <div class="option-card" data-id="strict-sergeant">
+            <h3>🔥 Strict Sergeant</h3>
+            <p>Tough love, roasting</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-section">
+        <div class="input-group">
+          <label>Your Name</label>
+          <input type="text" id="userName" value="friend" placeholder="Enter your name">
+        </div>
+      </div>
+
+      <div class="setup-section">
+        <h2>Track Preview</h2>
+        <div class="segment-list" id="segmentPreview">
+          <span class="segment-chip">Greeting</span>
+          <span class="segment-chip">Weather</span>
+          <span class="segment-chip">Visualization</span>
+          <span class="segment-chip">Fact</span>
+          <span class="segment-chip">News</span>
+          <span class="segment-chip">Calendar</span>
+          <span class="segment-chip">Fact</span>
+          <span class="segment-chip">Engagement</span>
+          <span class="segment-chip">Call to Action</span>
+          <span class="segment-chip">Music</span>
+        </div>
+      </div>
+
+      <button class="start-button" id="startButton">Start Session</button>
+    </div>
+
+    <!-- Session View -->
+    <div class="session-view" id="sessionView">
+      <div class="track-display">
+        <h2 style="font-size: 0.9rem; color: #888; margin-bottom: 10px;">Track Progress</h2>
+        <div class="segment-list" id="segmentProgress"></div>
+      </div>
+
+      <div style="text-align: center;">
+        <div class="mode-badge track" id="modeBadge">Track Mode</div>
+      </div>
+
+      <div class="visualizer" id="visualizer">
+        <div class="visualizer-inner">🌙</div>
+      </div>
+
+      <p class="status-text" id="statusText">Starting...</p>
+      <p class="timer" id="timerText"></p>
+
+      <div class="transcript" id="transcript">
+        <em style="color: #666;">Session will begin shortly...</em>
+      </div>
+
+      <div class="button-row">
+        <button class="awake-button" id="awakeButton">I'm Awake! 🎉</button>
+        <button class="end-button" id="endButton">End Session</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.13/dist/bundle.min.js"></script>
+  <script>
+    // ============================================
+    // STATE
+    // ============================================
+    let selectedPersona = 'zen-guide';
+    let sessionId = null;
+    let audioContext = null;
+    let vadInstance = null;
+    let isPlaying = false;
+    let audioQueue = [];
+    let silenceTimer = null;
+    let silenceStartTime = null;
+    let silenceDuration = null;  // Total duration for current timer
+    let silencePausedAt = null;  // When timer was paused (for resuming)
+    let currentSegmentIndex = 0;
+
+    const segmentNames = [
+      'Greeting', 'Weather', 'Visualization', 'Fact', 'News',
+      'Calendar', 'Fact', 'Engagement', 'Call to Action', 'Music'
+    ];
+
+    // ============================================
+    // DOM ELEMENTS
+    // ============================================
+    const setupView = document.getElementById('setupView');
+    const sessionView = document.getElementById('sessionView');
+    const startButton = document.getElementById('startButton');
+    const endButton = document.getElementById('endButton');
+    const awakeButton = document.getElementById('awakeButton');
+    const visualizer = document.getElementById('visualizer');
+    const statusText = document.getElementById('statusText');
+    const timerText = document.getElementById('timerText');
+    const transcript = document.getElementById('transcript');
+    const modeBadge = document.getElementById('modeBadge');
+    const segmentProgress = document.getElementById('segmentProgress');
+    const userNameInput = document.getElementById('userName');
+
+    // ============================================
+    // PERSONA SELECTION
+    // ============================================
+    document.querySelectorAll('#personaGrid .option-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('#personaGrid .option-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedPersona = card.dataset.id;
+      });
+    });
+
+    // ============================================
+    // AUDIO SETUP
+    // ============================================
+    async function setupAudio() {
+      audioContext = new AudioContext({ sampleRate: 16000 });
+
+      // Setup Silero VAD with proper paths
+      vadInstance = await vad.MicVAD.new({
+        onSpeechStart: () => {
+          console.log('[VAD] 🎤 Speech started');
+          statusText.textContent = 'Hearing you...';
+          // Pause timer when user starts speaking - we'll resume or restart depending on outcome
+          pauseSilenceTimer();
+        },
+        onSpeechEnd: async (audio) => {
+          console.log('[VAD] 🎤 Speech ended, audio length:', audio.length);
+
+          // Minimum audio length check - ignore very short clips (likely noise)
+          // 16000 samples = 1 second at 16kHz, so 8000 = 0.5 seconds minimum
+          if (audio.length < 8000) {
+            console.log('[VAD] ⚠️ Audio too short, ignoring:', audio.length);
+            statusText.textContent = 'Listening...';
+            resumeSilenceTimer();  // Resume timer from where it was
+            return;
+          }
+
+          statusText.textContent = 'Processing...';
+          await processUserSpeech(audio);
+        },
+        onVADMisfire: () => {
+          console.log('[VAD] ❌ Misfire (too short)');
+          statusText.textContent = 'Listening...';
+          resumeSilenceTimer();  // Resume timer from where it was
+        },
+        // Stricter thresholds to reduce false positives
+        positiveSpeechThreshold: 0.7,
+        negativeSpeechThreshold: 0.5,
+        minSpeechFrames: 8,
+        preSpeechPadFrames: 10,
+        redemptionFrames: 10,
+        modelURL: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.13/dist/silero_vad.onnx",
+        workletURL: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.13/dist/vad.worklet.bundle.min.js",
+        ortConfig: (ort) => {
+          ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/";
+        },
+      });
+
+      await vadInstance.start();
+      console.log('[Audio] VAD started');
+    }
+
+    // Convert Float32 to WAV
+    function float32ToWav(float32Array, sampleRate = 16000) {
+      const buffer = new ArrayBuffer(44 + float32Array.length * 2);
+      const view = new DataView(buffer);
+
+      const writeString = (offset, string) => {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      };
+
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + float32Array.length * 2, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeString(36, 'data');
+      view.setUint32(40, float32Array.length * 2, true);
+
+      for (let i = 0; i < float32Array.length; i++) {
+        const s = Math.max(-1, Math.min(1, float32Array[i]));
+        view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      }
+
+      return new Uint8Array(buffer);
+    }
+
+    // Process user speech
+    async function processUserSpeech(audioFloat32) {
+      const wavData = float32ToWav(audioFloat32);
+      // Convert to base64 without spread operator (avoids stack overflow on large arrays)
+      let binary = '';
+      for (let i = 0; i < wavData.length; i++) {
+        binary += String.fromCharCode(wavData[i]);
+      }
+      const base64 = btoa(binary);
+
+      try {
+        const response = await fetch(`/api/track/session/${sessionId}/audio`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio: base64 }),
+        });
+
+        const data = await response.json();
+
+        if (data.transcript) {
+          // Real speech detected - clear timer and handle response
+          console.log('[Speech] Transcript:', data.transcript);
+          clearSilenceTimer();
+          addToTranscript('user', `You: ${data.transcript}`);
+
+          if (data.conversationMode) {
+            setMode('conversation');
+          }
+
+          if (data.audio) {
+            addToTranscript('agent', data.text);
+            await playAudio(data.audio);
+          }
+
+          // Restart timer after agent responds
+          startSilenceTimer();
+        } else {
+          // No speech detected (was just noise) - don't touch the timer
+          console.log('[Speech] No transcript - was just noise, ignoring');
+          statusText.textContent = 'Listening...';
+        }
+      } catch (error) {
+        console.error('[Error] Processing speech:', error);
+        // On error, just go back to listening state without touching timer
+        statusText.textContent = 'Listening...';
+      }
+    }
+
+    // ============================================
+    // AUDIO PLAYBACK
+    // ============================================
+    async function playAudio(base64Audio) {
+      if (!audioContext) return;
+
+      visualizer.classList.add('speaking');
+      statusText.textContent = 'Speaking...';
+
+      const binaryString = atob(base64Audio);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // OpenAI TTS returns MP3, so try to decode it first
+      // Make a copy of the buffer since decodeAudioData detaches it
+      const bufferCopy = bytes.buffer.slice(0);
+
+      try {
+        const audioBuffer = await audioContext.decodeAudioData(bufferCopy);
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+
+        return new Promise(resolve => {
+          source.onended = () => {
+            visualizer.classList.remove('speaking');
+            statusText.textContent = 'Listening...';
+            resolve();
+          };
+          source.start();
+        });
+      } catch (e) {
+        console.log('[Audio] decodeAudioData failed, trying raw PCM fallback', e);
+        // Fallback: assume raw PCM (16-bit signed, 24kHz)
+        const int16Data = new Int16Array(bytes.buffer);
+        const float32Data = new Float32Array(int16Data.length);
+        for (let i = 0; i < int16Data.length; i++) {
+          float32Data[i] = int16Data[i] / 32768;
+        }
+
+        const audioBuffer = audioContext.createBuffer(1, float32Data.length, 24000);
+        audioBuffer.getChannelData(0).set(float32Data);
+
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+
+        return new Promise(resolve => {
+          source.onended = () => {
+            visualizer.classList.remove('speaking');
+            statusText.textContent = 'Listening...';
+            resolve();
+          };
+          source.start();
+        });
+      }
+    }
+
+    // ============================================
+    // SILENCE TIMER
+    // ============================================
+    function startSilenceTimer() {
+      clearSilenceTimer();
+      silencePausedAt = null;
+
+      // Get random duration from server
+      fetch(`/api/track/session/${sessionId}/silence-duration`)
+        .then(res => res.json())
+        .then(data => {
+          silenceDuration = data.duration || 8000;
+          runSilenceTimer(silenceDuration);
+        });
+    }
+
+    function runSilenceTimer(duration) {
+      silenceStartTime = Date.now();
+
+      // Update timer display
+      const updateTimer = () => {
+        if (!silenceStartTime) return;
+        const elapsed = Date.now() - silenceStartTime;
+        const remaining = Math.max(0, Math.ceil((duration - elapsed) / 1000));
+        timerText.textContent = `Next segment in ${remaining}s...`;
+        if (remaining > 0) {
+          requestAnimationFrame(updateTimer);
+        }
+      };
+      updateTimer();
+
+      silenceTimer = setTimeout(() => {
+        timerText.textContent = '';
+        silenceDuration = null;
+        silencePausedAt = null;
+        advanceTrack();
+      }, duration);
+    }
+
+    function pauseSilenceTimer() {
+      if (silenceTimer && silenceStartTime) {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+        silencePausedAt = Date.now() - silenceStartTime;  // How much time elapsed
+        silenceStartTime = null;
+        console.log(`[Timer] Paused with ${silenceDuration - silencePausedAt}ms remaining`);
+      }
+    }
+
+    function resumeSilenceTimer() {
+      if (silencePausedAt !== null && silenceDuration !== null) {
+        const remaining = silenceDuration - silencePausedAt;
+        console.log(`[Timer] Resuming with ${remaining}ms remaining`);
+        runSilenceTimer(remaining);
+        silencePausedAt = null;
+      } else {
+        // No timer to resume, start fresh
+        startSilenceTimer();
+      }
+    }
+
+    function clearSilenceTimer() {
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+      }
+      silenceStartTime = null;
+      silenceDuration = null;
+      silencePausedAt = null;
+      timerText.textContent = '';
+    }
+
+    // ============================================
+    // TRACK CONTROL
+    // ============================================
+    async function advanceTrack() {
+      try {
+        const response = await fetch(`/api/track/session/${sessionId}/next`, {
+          method: 'POST',
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          console.error('[Error]', data.error);
+          return;
+        }
+
+        // Update segment display
+        if (data.currentSegment) {
+          updateSegmentDisplay(data.currentSegment.type);
+        }
+
+        setMode('track');
+
+        if (data.text) {
+          addToTranscript('agent', data.text, data.currentSegment?.type);
+        }
+
+        if (data.audio) {
+          await playAudio(data.audio);
+        }
+
+        if (data.isComplete) {
+          statusText.textContent = 'Session complete!';
+          return;
+        }
+
+        startSilenceTimer();
+      } catch (error) {
+        console.error('[Error] Advancing track:', error);
+      }
+    }
+
+    function updateSegmentDisplay(currentType) {
+      const chips = segmentProgress.querySelectorAll('.segment-chip');
+      let foundCurrent = false;
+
+      chips.forEach((chip, index) => {
+        const chipType = chip.dataset.type;
+        if (chipType === currentType && !foundCurrent) {
+          chip.classList.add('active');
+          chip.classList.remove('done');
+          foundCurrent = true;
+          currentSegmentIndex = index;
+        } else if (!foundCurrent) {
+          chip.classList.add('done');
+          chip.classList.remove('active');
+        } else {
+          chip.classList.remove('active', 'done');
+        }
+      });
+    }
+
+    function setMode(mode) {
+      if (mode === 'conversation') {
+        modeBadge.textContent = 'Conversation Mode';
+        modeBadge.className = 'mode-badge conversation';
+      } else {
+        modeBadge.textContent = 'Track Mode';
+        modeBadge.className = 'mode-badge track';
+      }
+    }
+
+    // ============================================
+    // TRANSCRIPT
+    // ============================================
+    function addToTranscript(role, text, segmentType = null) {
+      // Clear placeholder
+      if (transcript.querySelector('em')) {
+        transcript.innerHTML = '';
+      }
+
+      if (segmentType) {
+        const label = document.createElement('div');
+        label.className = 'segment-label';
+        // Convert camelCase to Title Case (e.g., "callToAction" -> "Call To Action")
+        label.textContent = segmentType
+          .replace(/([A-Z])/g, ' $1')
+          .trim()
+          .replace(/^./, c => c.toUpperCase());
+        transcript.appendChild(label);
+      }
+
+      const p = document.createElement('p');
+      p.className = role;
+      p.textContent = text;
+      transcript.appendChild(p);
+      transcript.scrollTop = transcript.scrollHeight;
+    }
+
+    // ============================================
+    // SESSION CONTROL
+    // ============================================
+    async function startSession() {
+      const userName = userNameInput.value.trim() || 'friend';
+
+      // Create session
+      const response = await fetch('/api/track/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          personaId: selectedPersona,
+          voiceId: 'alloy',
+          userName: userName,
+          weather: {
+            currentTemp: 14,
+            feelsLike: 12,
+            conditions: 'Partly cloudy',
+            windDirection: 'North',
+            windStrength: 'Light breeze',
+            precipChance: 10,
+            precipTiming: null,
+            highTemp: 22,
+            eveningTemp: 16,
+            uvIndex: 6,
+            nightSummary: 'It was a clear, quiet night.'
+          },
+          calendar: [
+            { title: 'Team standup', time: '9:30 AM' },
+            { title: 'Project review', time: '2:00 PM' }
+          ],
+          news: [
+            { headline: 'New space telescope captures distant galaxies', summary: 'Scientists reveal stunning images from deep space.', theme: 'technology' },
+            { headline: 'Local park renovation complete', summary: 'The newly designed green space opens to the public this weekend.', theme: 'local' }
+          ]
+        }),
+      });
+
+      const data = await response.json();
+      sessionId = data.sessionId;
+
+      console.log('[Session] Created:', sessionId);
+
+      // Setup audio
+      await setupAudio();
+
+      // Switch views
+      setupView.classList.add('hidden');
+      sessionView.classList.add('active');
+
+      // Setup segment progress display
+      const segments = [
+        { type: 'greeting', name: 'Greeting' },
+        { type: 'weather', name: 'Weather' },
+        { type: 'visualization', name: 'Visualization' },
+        { type: 'fact', name: 'Fact' },
+        { type: 'news', name: 'News' },
+        { type: 'calendar', name: 'Calendar' },
+        { type: 'fact', name: 'Fact' },
+        { type: 'engagement', name: 'Engagement' },
+        { type: 'callToAction', name: 'Call to Action' },
+        { type: 'music', name: 'Music' },
+      ];
+
+      segmentProgress.innerHTML = segments.map((s, i) =>
+        `<span class="segment-chip ${i === 0 ? 'active' : ''}" data-type="${s.type}">${s.name}</span>`
+      ).join('');
+
+      // Start the session (get greeting)
+      const startResponse = await fetch(`/api/track/session/${sessionId}/start`, {
+        method: 'POST',
+      });
+
+      const startData = await startResponse.json();
+
+      if (startData.text) {
+        addToTranscript('agent', startData.text, 'greeting');
+      }
+
+      if (startData.audio) {
+        await playAudio(startData.audio);
+      }
+
+      statusText.textContent = 'Listening...';
+      startSilenceTimer();
+    }
+
+    async function endSession() {
+      clearSilenceTimer();
+
+      if (vadInstance) {
+        vadInstance.pause();
+      }
+
+      if (sessionId) {
+        await fetch(`/api/track/session/${sessionId}`, { method: 'DELETE' });
+      }
+
+      // Reset
+      sessionId = null;
+      sessionView.classList.remove('active');
+      setupView.classList.remove('hidden');
+      transcript.innerHTML = '<em style="color: #666;">Session will begin shortly...</em>';
+    }
+
+    async function markAwake() {
+      if (!sessionId) return;
+
+      await fetch(`/api/track/session/${sessionId}/awake`, { method: 'POST' });
+      statusText.textContent = '🎉 Great job getting up!';
+
+      // Advance to music
+      await advanceTrack();
+    }
+
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+    startButton.addEventListener('click', startSession);
+    endButton.addEventListener('click', endSession);
+    awakeButton.addEventListener('click', markAwake);
+  </script>
+</body>
+</html>
