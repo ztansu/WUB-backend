@@ -51,6 +51,17 @@ router.post('/session', async (req: Request, res: Response) => {
       spotifyPlaylistId,
     } = req.body;
 
+    // Convert segmentOrder from string[] to SegmentConfig[]
+    // iOS client sends: ["greeting", "weather", "calendar"]
+    // TrackEngine expects: [{type: "greeting", enabled: true}, ...]
+    let segments = getDefaultSegmentOrder();
+    if (segmentOrder && Array.isArray(segmentOrder)) {
+      segments = segmentOrder.map((type: string) => ({
+        type: type as any,
+        enabled: true,
+      }));
+    }
+
     // Fetch real news if newsThemes provided and Grok API is available
     let fetchedNews: NewsItem[] | undefined = news;
     if (newsThemes && newsThemes.length > 0 && grokApiKey && !news) {
@@ -73,7 +84,7 @@ router.post('/session', async (req: Request, res: Response) => {
       personaId,
       voiceId,
       userName,
-      segmentOrder: segmentOrder || getDefaultSegmentOrder(),
+      segmentOrder: segments,
       weather,
       calendar,
       news: fetchedNews,
