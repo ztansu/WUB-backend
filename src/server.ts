@@ -57,8 +57,8 @@ app.use('/api/chained', chainedRouter);
 initGptDrivenApi(OPENAI_API_KEY!);
 app.use('/api/gpt-driven', gptDrivenRouter);
 
-// Initialize Track Engine API
-initTrackApi(OPENAI_API_KEY!);
+// Initialize Track Engine API (pass Grok key for news fetching)
+initTrackApi(OPENAI_API_KEY!, GROK_API_KEY);
 app.use('/api/track', trackRouter);
 
 // ============================================

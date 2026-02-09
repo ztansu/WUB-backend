@@ -13,17 +13,23 @@ import {
   NewsItem,
 } from '../services/trackEngine';
 import { initOpenAI } from '../services/chainedSession';
+import { getNewsThemes, fetchNewsHeadlines } from '../services/grokNews';
 
 const router = Router();
+
+// Store API keys for news fetching
+let grokApiKey: string | undefined;
 
 // Store active sessions
 const sessions = new Map<string, TrackEngine>();
 
-// Initialize the track engine with OpenAI key
-export function initTrackApi(apiKey: string) {
-  initTrackEngine(apiKey);
+// Initialize the track engine with API keys
+export function initTrackApi(openaiKey: string, grokKey?: string) {
+  initTrackEngine(openaiKey);
   // Also init the chainedSession's OpenAI client since trackEngine uses its TTS/transcribe
-  initOpenAI(apiKey);
+  initOpenAI(openaiKey);
+  // Store Grok key for news fetching
+  grokApiKey = grokKey;
 }
 
 // ============================================
@@ -45,6 +51,24 @@ router.post('/session', async (req: Request, res: Response) => {
       spotifyPlaylistId,
     } = req.body;
 
+    // Fetch real news if newsThemes provided and Grok API is available
+    let fetchedNews: NewsItem[] | undefined = news;
+    if (newsThemes && newsThemes.length > 0 && grokApiKey && !news) {
+      console.log(`[TrackAPI] Fetching news for themes: ${newsThemes.join(', ')}`);
+      try {
+        const newsResult = await fetchNewsHeadlines(grokApiKey, newsThemes, 3);
+        fetchedNews = newsResult.headlines.map(h => ({
+          headline: h.title,
+          summary: h.title,  // Use title as summary for now
+          theme: h.category || newsThemes[0],
+        }));
+        console.log(`[TrackAPI] Fetched ${fetchedNews.length} news items from ${newsResult.source}`);
+      } catch (newsError) {
+        console.error('[TrackAPI] Failed to fetch news:', newsError);
+        // Continue without news
+      }
+    }
+
     const config: TrackConfig = {
       personaId,
       voiceId,
@@ -52,7 +76,7 @@ router.post('/session', async (req: Request, res: Response) => {
       segmentOrder: segmentOrder || getDefaultSegmentOrder(),
       weather,
       calendar,
-      news,
+      news: fetchedNews,
       facts,
       newsThemes,
       spotifyPlaylistId,
@@ -231,6 +255,15 @@ router.get('/session/:id/silence-duration', (req: Request, res: Response) => {
   res.json({
     duration: engine.getSilenceDuration(),
   });
+});
+
+// ============================================
+// GET NEWS THEMES (for onboarding)
+// ============================================
+
+router.get('/news-themes', (req: Request, res: Response) => {
+  const themes = getNewsThemes();
+  res.json({ themes });
 });
 
 export default router;

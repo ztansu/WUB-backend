@@ -1,11 +1,9 @@
 /**
  * Grok News Service
  *
- * Fetches news headlines using the Grok API (X/Twitter).
- * Falls back to a simple summary if API is unavailable.
+ * Fetches real-time news using Grok API (X/Twitter).
+ * Grok has access to current events via X platform data.
  */
-
-import fetch from 'node-fetch';
 
 export interface NewsHeadline {
   title: string;
@@ -19,41 +17,102 @@ export interface NewsResult {
   source: 'grok' | 'fallback';
 }
 
+// Available news themes users can choose from
+export const NEWS_THEMES = [
+  { id: 'technology', label: 'Technology', emoji: '💻' },
+  { id: 'business', label: 'Business & Finance', emoji: '📈' },
+  { id: 'world', label: 'World News', emoji: '🌍' },
+  { id: 'sports', label: 'Sports', emoji: '⚽' },
+  { id: 'entertainment', label: 'Entertainment', emoji: '🎬' },
+  { id: 'science', label: 'Science', emoji: '🔬' },
+  { id: 'health', label: 'Health & Wellness', emoji: '🏥' },
+  { id: 'culture', label: 'Culture & Arts', emoji: '🎨' },
+] as const;
+
+export type NewsThemeId = typeof NEWS_THEMES[number]['id'];
+
 /**
- * Fetch news headlines from Grok API
- *
- * Note: Grok API integration requires X API credentials.
- * This is a placeholder that will be implemented once we have API access.
+ * Fetch real news headlines from Grok API
+ * Grok uses a chat completion interface and has real-time access to X/Twitter data
  */
 export async function fetchNewsHeadlines(
   apiKey: string,
+  themes: string[] = ['technology', 'world'],
   count: number = 4
 ): Promise<NewsResult> {
-  // TODO: Implement actual Grok API call
-  // The Grok API endpoint and format may vary - this is a placeholder
-
   try {
-    // Placeholder for Grok API call
-    // const response = await fetch('https://api.x.ai/v1/grok/news', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${apiKey}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     query: 'top news headlines today',
-    //     count: count,
-    //   }),
-    // });
+    console.log(`[GrokNews] Fetching news for themes: ${themes.join(', ')}`);
 
-    // For now, return placeholder headlines
-    // In production, this will be replaced with actual Grok API response
-    console.log('[GrokNews] API key provided, but using placeholder until integration is complete');
+    const themesText = themes.length > 0
+      ? `Focus on these topics: ${themes.join(', ')}.`
+      : 'Cover a variety of topics.';
+
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'grok-beta',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a news briefing assistant. Provide ${count} current, real news headlines from today or the past 24 hours. ${themesText}
+
+Format your response as JSON array:
+[
+  {"title": "Headline text", "category": "category_name"},
+  ...
+]
+
+Rules:
+- Only real, current news - nothing made up
+- Keep headlines concise (under 15 words)
+- Include category from: technology, business, world, sports, entertainment, science, health, culture
+- Return ONLY the JSON array, no other text`
+          },
+          {
+            role: 'user',
+            content: `What are the top ${count} news headlines right now?`
+          }
+        ],
+        temperature: 0.3,  // Lower temperature for factual content
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[GrokNews] API error: ${response.status} - ${errorText}`);
+      throw new Error(`Grok API error: ${response.status}`);
+    }
+
+    const data = await response.json() as {
+      choices: Array<{
+        message: {
+          content: string;
+        };
+      }>;
+    };
+
+    const content = data.choices[0]?.message?.content || '';
+    console.log(`[GrokNews] Raw response: ${content.substring(0, 200)}...`);
+
+    // Parse the JSON response
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.error('[GrokNews] Could not parse JSON from response');
+      throw new Error('Invalid response format');
+    }
+
+    const headlines: NewsHeadline[] = JSON.parse(jsonMatch[0]);
+
+    console.log(`[GrokNews] Successfully fetched ${headlines.length} headlines`);
 
     return {
-      headlines: await getFallbackHeadlines(count),
+      headlines: headlines.slice(0, count),
       fetchedAt: new Date(),
-      source: 'fallback',
+      source: 'grok',
     };
   } catch (error) {
     console.error('[GrokNews] Failed to fetch from Grok API:', error);
@@ -67,29 +126,26 @@ export async function fetchNewsHeadlines(
 
 /**
  * Fallback headlines when API is unavailable
- * In production, these could come from a backup news API
  */
 async function getFallbackHeadlines(count: number): Promise<NewsHeadline[]> {
-  // These are placeholder headlines
-  // In production, we'd use a backup news API like NewsAPI.org
   const placeholders: NewsHeadline[] = [
     {
-      title: 'Markets open mixed as investors await economic data',
+      title: 'Markets showing mixed signals as investors await economic data',
       source: 'Financial News',
       category: 'business',
     },
     {
-      title: 'Tech companies announce new AI initiatives',
+      title: 'New AI breakthroughs announced at major tech conference',
       source: 'Tech Daily',
       category: 'technology',
     },
     {
-      title: 'Climate summit reaches preliminary agreement',
+      title: 'Climate summit reaches preliminary agreement on emissions',
       source: 'World News',
       category: 'world',
     },
     {
-      title: 'Sports: Championship games set for this weekend',
+      title: 'Championship finals set for this weekend after dramatic semifinals',
       source: 'Sports Update',
       category: 'sports',
     },
@@ -99,7 +155,7 @@ async function getFallbackHeadlines(count: number): Promise<NewsHeadline[]> {
 }
 
 /**
- * Format headlines for the voice agent to read
+ * Format headlines for the voice agent to read naturally
  */
 export function formatHeadlinesForVoice(headlines: NewsHeadline[]): string {
   if (headlines.length === 0) {
@@ -116,7 +172,17 @@ export function formatHeadlinesForVoice(headlines: NewsHeadline[]): string {
 /**
  * Get a brief news summary for the wake-up session
  */
-export async function getNewsBriefing(apiKey: string): Promise<string> {
-  const result = await fetchNewsHeadlines(apiKey, 3);
+export async function getNewsBriefing(
+  apiKey: string,
+  themes?: string[]
+): Promise<string> {
+  const result = await fetchNewsHeadlines(apiKey, themes, 3);
   return formatHeadlinesForVoice(result.headlines);
+}
+
+/**
+ * Get available news themes for user preferences
+ */
+export function getNewsThemes() {
+  return NEWS_THEMES;
 }
