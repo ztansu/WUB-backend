@@ -177,3 +177,4 @@ The iOS app will add:
 - Calendar integration (EventKit)
 - Step counting for wake verification
 - Persistent user preferences
+
