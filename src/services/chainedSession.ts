@@ -306,7 +306,7 @@ export async function textToSpeech(
       model: 'tts-1',
       voice: voice,
       input: text,
-      response_format: 'pcm',  // Raw PCM for easy playback
+      response_format: 'mp3',  // MP3 format for iOS AVAudioPlayer compatibility
       speed: 1.0,
     });
 
