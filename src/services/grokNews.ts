@@ -47,18 +47,12 @@ export async function fetchNewsHeadlines(
       ? `Focus on these topics: ${themes.join(', ')}.`
       : 'Cover a variety of topics.';
 
-    const response = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'grok-3',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a news briefing assistant. Today's date is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Provide ${count} current, real news headlines from today or the past 24 hours. ${themesText}
+    // Log the current date being used
+    const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    console.log(`[GrokNews] 📅 Current date for prompt: ${currentDate}`);
+
+    // Build the system prompt
+    const systemPrompt = `You are a news briefing assistant. Today's date is ${currentDate}. Provide ${count} current, real news headlines from today or the past 24 hours. ${themesText}
 
 Format your response as JSON array:
 [
@@ -70,7 +64,22 @@ Rules:
 - Only real, current news - nothing made up
 - Keep headlines concise (under 15 words)
 - Include category from: technology, business, world, sports, entertainment, science, health, culture
-- Return ONLY the JSON array, no other text`
+- Return ONLY the JSON array, no other text`;
+    
+    console.log(`[GrokNews] 📝 System prompt (first 200 chars): ${systemPrompt.substring(0, 200)}...`);
+
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'grok-3',
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
           },
           {
             role: 'user',
@@ -83,7 +92,7 @@ Rules:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[GrokNews] API error: ${response.status} - ${errorText}`);
+      console.error(`[GrokNews] ❌ API error: ${response.status} - ${errorText}`);
       throw new Error(`Grok API error: ${response.status}`);
     }
 
@@ -96,18 +105,21 @@ Rules:
     };
 
     const content = data.choices[0]?.message?.content || '';
-    console.log(`[GrokNews] Raw response: ${content.substring(0, 200)}...`);
+    console.log(`[GrokNews] 📨 Full Grok response: ${content}`);
 
     // Parse the JSON response
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      console.error('[GrokNews] Could not parse JSON from response');
+      console.error('[GrokNews] ❌ Could not parse JSON from response');
       throw new Error('Invalid response format');
     }
 
     const headlines: NewsHeadline[] = JSON.parse(jsonMatch[0]);
 
-    console.log(`[GrokNews] Successfully fetched ${headlines.length} headlines`);
+    console.log(`[GrokNews] ✅ Successfully fetched ${headlines.length} headlines`);
+    headlines.forEach((h, i) => {
+      console.log(`[GrokNews]   ${i + 1}. ${h.title} (${h.category})`);
+    });
 
     return {
       headlines: headlines.slice(0, count),
@@ -115,7 +127,8 @@ Rules:
       source: 'grok',
     };
   } catch (error) {
-    console.error('[GrokNews] Failed to fetch from Grok API:', error);
+    console.error('[GrokNews] ❌ Failed to fetch from Grok API:', error);
+    console.log('[GrokNews] 🔄 Falling back to placeholder headlines');
     return {
       headlines: await getFallbackHeadlines(count),
       fetchedAt: new Date(),
