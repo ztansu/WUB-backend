@@ -58,7 +58,7 @@ export async function fetchNewsHeadlines(
         messages: [
           {
             role: 'system',
-            content: `You are a news briefing assistant. Provide ${count} current, real news headlines from today or the past 24 hours. ${themesText}
+            content: `You are a news briefing assistant. Today's date is ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Provide ${count} current, real news headlines from today or the past 24 hours. ${themesText}
 
 Format your response as JSON array:
 [
