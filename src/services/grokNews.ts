@@ -121,7 +121,11 @@ Rules:
     // Extract text from the output array
     const outputMessage = data.output?.find(item => item.type === 'message' && item.role === 'assistant');
     const textContent = outputMessage?.content?.find(c => c.type === 'output_text');
-    const content = textContent?.text || '';
+    let content = textContent?.text || '';
+
+    // Remove citation tags that Grok includes (they don't read well aloud)
+    content = content.replace(/<grok:render[^>]*>.*?<\/grok:render>/gs, '');
+
     console.log(`[GrokNews] 📨 Full Grok response: ${content}`);
 
     // Parse the JSON response
@@ -139,7 +143,7 @@ Rules:
     });
 
     return {
-      headlines: headlines.slice(0, count),
+      headlines: headlines,  // Return all stories Grok provided (3-5 range)
       fetchedAt: new Date(),
       source: 'grok',
     };
@@ -206,7 +210,7 @@ export async function getNewsBriefing(
   apiKey: string,
   themes?: string[]
 ): Promise<string> {
-  const result = await fetchNewsHeadlines(apiKey, themes, 3);
+  const result = await fetchNewsHeadlines(apiKey, themes);
   return formatHeadlinesForVoice(result.headlines);
 }
 
