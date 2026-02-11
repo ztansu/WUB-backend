@@ -67,7 +67,7 @@ Rules:
 - Return ONLY the JSON array, no other text`;
     
     console.log(`[GrokNews] 📝 System prompt (first 200 chars): ${systemPrompt.substring(0, 200)}...`);
-    console.log(`[GrokNews] 🔍 Enabling web_search and x_search tools for real-time news`);
+    console.log(`[GrokNews] 🔍 Enabling live_search for real-time news`);
 
     const response = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
@@ -90,13 +90,7 @@ Rules:
         temperature: 0.3,  // Lower temperature for factual content
         tools: [
           {
-            type: 'web_search',
-            web_search: {
-              enable_image_understanding: false
-            }
-          },
-          {
-            type: 'x_search'
+            type: 'live_search'
           }
         ],
       }),
