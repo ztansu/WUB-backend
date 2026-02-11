@@ -67,17 +67,17 @@ Rules:
 - Return ONLY the JSON array, no other text`;
     
     console.log(`[GrokNews] 📝 System prompt (first 200 chars): ${systemPrompt.substring(0, 200)}...`);
-    console.log(`[GrokNews] 🔍 Enabling live_search for real-time news`);
+    console.log(`[GrokNews] 🔍 Enabling x_search and web_search tools for real-time news`);
 
-    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+    const response = await fetch('https://api.x.ai/v1/responses', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'grok-3',
-        messages: [
+        model: 'grok-4-1-fast',  // Fast model for quick news retrieval
+        input: [
           {
             role: 'system',
             content: systemPrompt
@@ -90,8 +90,10 @@ Rules:
         temperature: 0.3,  // Lower temperature for factual content
         tools: [
           {
-            type: 'live_search',
-            sources: ['web', 'x']  // Search both web and X/Twitter
+            type: 'x_search'
+          },
+          {
+            type: 'web_search'
           }
         ],
       }),
@@ -104,14 +106,20 @@ Rules:
     }
 
     const data = await response.json() as {
-      choices: Array<{
-        message: {
-          content: string;
-        };
+      output: Array<{
+        type: string;
+        role: string;
+        content: Array<{
+          type: string;
+          text: string;
+        }>;
       }>;
     };
 
-    const content = data.choices[0]?.message?.content || '';
+    // Extract text from the output array
+    const outputMessage = data.output?.find(item => item.type === 'message' && item.role === 'assistant');
+    const textContent = outputMessage?.content?.find(c => c.type === 'output_text');
+    const content = textContent?.text || '';
     console.log(`[GrokNews] 📨 Full Grok response: ${content}`);
 
     // Parse the JSON response
