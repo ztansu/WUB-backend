@@ -90,7 +90,8 @@ Rules:
         temperature: 0.3,  // Lower temperature for factual content
         tools: [
           {
-            type: 'live_search'
+            type: 'live_search',
+            sources: ['web', 'x']  // Search both web and X/Twitter
           }
         ],
       }),
