@@ -52,17 +52,19 @@ export async function fetchNewsHeadlines(
     console.log(`[GrokNews] 📅 Current date for prompt: ${currentDate}`);
 
     // Build the system prompt
-    const systemPrompt = `You are a news briefing assistant. Today's date is ${currentDate}. Provide ${count} current, real news headlines from today or the past 24 hours. ${themesText}
+    const systemPrompt = `You are a news briefing assistant. Today's date is ${currentDate}. Provide 3-5 current, real news stories from today or the past 24 hours based on what's most important and newsworthy. ${themesText}
 
 Format your response as JSON array:
 [
-  {"title": "Headline text", "category": "category_name"},
+  {"title": "Brief news story in 2-4 sentences", "category": "category_name"},
   ...
 ]
 
 Rules:
 - Only real, current news - nothing made up
-- Keep headlines concise (under 15 words)
+- Provide 3-5 stories depending on how many important stories are happening today
+- Each news story should be 2-4 sentences explaining what happened
+- Keep stories concise and easy to understand when read aloud
 - Include category from: technology, business, world, sports, entertainment, science, health, culture
 - Return ONLY the JSON array, no other text`;
     
