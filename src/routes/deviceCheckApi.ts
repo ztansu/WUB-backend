@@ -39,14 +39,16 @@ function generateDeviceCheckJWT(): string {
     throw new Error('DeviceCheck private key not found in env var or file path');
   }
 
-  const token = jwt.sign({}, privateKey, {
-    algorithm: 'ES256',
-    expiresIn: '10m',
-    issuer: APPLE_TEAM_ID,
-    header: {
-      kid: DEVICECHECK_KEY_ID,
-    },
-  });
+  const token = jwt.sign(
+    {},
+    privateKey,
+    {
+      algorithm: 'ES256',
+      expiresIn: '10m',
+      issuer: APPLE_TEAM_ID,
+      keyid: DEVICECHECK_KEY_ID,
+    }
+  );
 
   return token;
 }
