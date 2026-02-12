@@ -28,6 +28,7 @@ import { WakeSessionBrain } from './services/wakeSessionBrain';
 import chainedRouter, { initChainedApi } from './routes/chainedApi';
 import gptDrivenRouter, { initGptDrivenApi } from './routes/gptDrivenApi';
 import trackRouter, { initTrackApi } from './routes/trackApi';
+import deviceCheckRouter from './routes/deviceCheckApi';
 
 // Load environment variables
 dotenv.config();
@@ -60,6 +61,9 @@ app.use('/api/gpt-driven', gptDrivenRouter);
 // Initialize Track Engine API (pass Grok key for news fetching)
 initTrackApi(OPENAI_API_KEY!, GROK_API_KEY);
 app.use('/api/track', trackRouter);
+
+// DeviceCheck API for free trial tracking
+app.use('/device', deviceCheckRouter);
 
 // ============================================
 // REST API ENDPOINTS

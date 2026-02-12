@@ -21,11 +21,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "global-agent": "^3.0.0",
     "https-proxy-agent": "^7.0.6",
+    "jsonwebtoken": "^9.0.3",
     "node-fetch": "^2.7.0",
     "openai": "^6.16.0",
     "ws": "^8.19.0"
