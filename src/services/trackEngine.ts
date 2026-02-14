@@ -244,6 +244,43 @@ One sentence to hand off to music.`,
 };
 
 // ============================================
+// GLOBAL FACT STORE (persists across sessions)
+// ============================================
+
+// Store used facts globally so they persist across sessions
+// Map structure: fact topic (lowercase) -> timestamp when used
+const globalUsedFacts = new Map<string, Date>();
+
+// Maximum facts to remember (keep last 100 facts)
+const MAX_FACTS_TO_REMEMBER = 100;
+
+// Add used facts to global store
+function addUsedFactToGlobalStore(factTopic: string) {
+  const topic = factTopic.toLowerCase().trim();
+  globalUsedFacts.set(topic, new Date());
+
+  // Clean up old facts if we exceed the limit
+  if (globalUsedFacts.size > MAX_FACTS_TO_REMEMBER) {
+    // Convert to array and sort by date (oldest first)
+    const sortedFacts = Array.from(globalUsedFacts.entries())
+      .sort((a, b) => a[1].getTime() - b[1].getTime());
+
+    // Remove oldest facts
+    const toRemove = sortedFacts.slice(0, globalUsedFacts.size - MAX_FACTS_TO_REMEMBER);
+    for (const [topic] of toRemove) {
+      globalUsedFacts.delete(topic);
+    }
+  }
+
+  console.log(`[FactStore] Stored fact: "${topic}" (total: ${globalUsedFacts.size} facts)`);
+}
+
+// Get all used facts from global store
+function getAllUsedFacts(): string[] {
+  return Array.from(globalUsedFacts.keys());
+}
+
+// ============================================
 // TRACK ENGINE CLASS
 // ============================================
 
@@ -325,10 +362,9 @@ export class TrackEngine {
     return true;  // Indicate we advanced
   }
 
-  // Get random silence duration
+  // Get silence duration (track mode)
   getSilenceDuration(): number {
-    const options = [6000, 8000, 10000, 12000];
-    return options[Math.floor(Math.random() * options.length)];
+    return 5000;  // 5 seconds
   }
 
   // Generate content for current segment
@@ -365,8 +401,13 @@ export class TrackEngine {
         const factMatch = text.match(/\[([^\]]+)\]\s*$/);
         if (factMatch) {
           const factTopic = factMatch[1].toLowerCase().trim();
+
+          // Add to session state
           this.state.usedFacts.push(factTopic);
-          console.log(`[TrackEngine] Stored fact topic: ${factTopic}`);
+
+          // Add to global persistent store
+          addUsedFactToGlobalStore(factTopic);
+
           // Remove the tag from the spoken text
           text = text.replace(/\s*\[[^\]]+\]\s*$/, '').trim();
         }
@@ -430,14 +471,17 @@ ${this.config.news.map(n => `- ${n.headline}: ${n.summary}`).join('\n')}
 `;
     }
 
-    // Add used facts to avoid repetition
-    if (segment.type === 'fact' && this.state.usedFacts.length > 0) {
-      prompt += `
+    // Add used facts to avoid repetition (from GLOBAL store)
+    if (segment.type === 'fact') {
+      const allUsedFacts = getAllUsedFacts();
+      if (allUsedFacts.length > 0) {
+        prompt += `
 ## Facts Already Used (DO NOT repeat these topics)
-${this.state.usedFacts.map(f => `- ${f}`).join('\n')}
+${allUsedFacts.map(f => `- ${f}`).join('\n')}
 
-Pick a completely different topic.
+Pick a completely different topic. Be creative and find something totally new.
 `;
+      }
     }
 
     // Add history for variation
