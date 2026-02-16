@@ -69,6 +69,9 @@ router.post('/session', async (req: Request, res: Response) => {
       }));
     }
 
+    console.log(`[TrackAPI] 📋 Received segmentOrder:`, segmentOrder);
+    console.log(`[TrackAPI] 📋 Converted segments:`, segments.map((s, i) => `[${i}] ${s.type}`).join(', '));
+
     const step1Time = Date.now() - overallStart;
     console.log(`[TrackAPI] ⏱️ Step 1 (Parse request): ${step1Time}ms`);
 

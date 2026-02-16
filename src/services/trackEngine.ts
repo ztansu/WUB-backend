@@ -329,18 +329,21 @@ export class TrackEngine {
 
     // Skip disabled segments
     if (!segment.enabled) {
+      console.log(`[TrackEngine] ⏭️ Skipping disabled segment at index ${this.state.currentSegmentIndex}: ${segment.type}`);
       this.state.currentSegmentIndex++;
       return this.getCurrentSegmentWithDepth(depth + 1);
     }
 
     // Skip calendar if no events
     if (segment.type === 'calendar' && (!this.config.calendar || this.config.calendar.length === 0)) {
+      console.log(`[TrackEngine] ⏭️ Skipping calendar segment at index ${this.state.currentSegmentIndex} (no events)`);
       this.state.currentSegmentIndex++;
       return this.getCurrentSegmentWithDepth(depth + 1);
     }
 
     // Skip news if not configured
     if (segment.type === 'news' && (!this.config.news || this.config.news.length === 0)) {
+      console.log(`[TrackEngine] ⏭️ Skipping news segment at index ${this.state.currentSegmentIndex} (no data)`);
       this.state.currentSegmentIndex++;
       return this.getCurrentSegmentWithDepth(depth + 1);
     }
@@ -350,6 +353,7 @@ export class TrackEngine {
 
   // Advance to next segment
   advanceSegment(): boolean {
+    const beforeIndex = this.state.currentSegmentIndex;
     // Special case: stay on callToAction until user is awake
     const current = this.config.segmentOrder[this.state.currentSegmentIndex];
     if (current?.type === 'callToAction') {
@@ -359,6 +363,7 @@ export class TrackEngine {
     }
 
     this.state.currentSegmentIndex++;
+    console.log(`[TrackEngine] 📍 Advanced from index ${beforeIndex} to ${this.state.currentSegmentIndex}`);
     return true;  // Indicate we advanced
   }
 
