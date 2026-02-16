@@ -505,20 +505,12 @@ Generate something FRESH and DIFFERENT.
         .map(msg => `${msg.role === 'user' ? 'User' : 'You'}: "${msg.content}"`)
         .join('\n');
 
-      // Check if the user actually spoke (last message is from user)
-      const lastMessage = this.state.recentConversation[this.state.recentConversation.length - 1];
-      const userActuallySpokeRecently = lastMessage?.role === 'user';
-
-      const transitionGuidance = userActuallySpokeRecently
-        ? 'Transition naturally - a brief acknowledgment of what they said, then smoothly introduce the next segment.'
-        : 'Transition smoothly to the next segment with a simple intro (e.g., "Alright, let's check the weather..."). DO NOT use acknowledgment phrases like "Awesome!", "Great!", or "Perfect!" since they were silent.';
-
       prompt += `
 ## Recent Conversation
 You just had a brief conversation with the user:
 ${convoText}
 
-Now continue with the ${segment.type} segment. ${transitionGuidance}
+Now continue with the ${segment.type} segment. Transition naturally - a brief acknowledgment or smooth segue works well.
 `;
     }
 
@@ -636,8 +628,7 @@ User's name: ${this.config.userName}`;
       const greetingGuidance = justSaidGreeting
         ? `\n\nSPECIAL NOTE: You just said the greeting. The user is likely responding to your greeting.
 DO NOT say "good morning" or greet them again - you already did that.
-Respond naturally to what they ACTUALLY said - if they shared something positive, acknowledge it warmly. If they shared something difficult or sad, respond with empathy. If it's neutral, keep it brief.
-Match the emotional tone of their message. Be human, not robotic.
+Just acknowledge what they said naturally and briefly (e.g., "Great to hear!" or "Awesome!" or "Ready to go!").
 Keep it SHORT - 1 sentence max.`
         : '';
 
@@ -646,20 +637,7 @@ Keep it SHORT - 1 sentence max.`
 ${personaTone}
 
 You're in the middle of a wake-up session. The user just said something.
-Respond naturally to what they ACTUALLY said - don't use generic phrases.
-
-Examples of BAD responses:
-- "Awesome!" (generic, doesn't acknowledge what they said)
-- "Great to hear!" (generic)
-- "Ready to go!" (ignores their message)
-
-Examples of GOOD responses:
-User: "I slept well" → "That's great, you'll have good energy today."
-User: "I had a nightmare" → "Sorry to hear that. Let's focus on a better day ahead."
-User: "I don't want to get up" → "I know it's tough, but you set this alarm for a reason."
-
 Respond briefly - acknowledge what they said, answer if they asked a question.
-
 
 IMPORTANT: Do NOT ask follow-up questions. Do NOT try to keep the conversation going.
 Just respond and stop. The wake-up track will continue automatically.${greetingGuidance}
