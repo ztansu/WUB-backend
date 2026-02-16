@@ -299,7 +299,11 @@ export async function textToSpeech(
 ): Promise<Buffer> {
   if (!openaiClient) throw new Error('OpenAI client not initialized');
 
-  const voice = TTS_VOICES[voiceId] || 'nova';
+  // Support both direct OpenAI voice names and legacy mappings
+  const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+  const voice = validVoices.includes(voiceId) 
+    ? voiceId 
+    : (TTS_VOICES[voiceId] || 'nova');
 
   try {
     const response = await openaiClient.audio.speech.create({
