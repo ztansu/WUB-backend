@@ -511,7 +511,7 @@ Generate something FRESH and DIFFERENT.
 
       const transitionGuidance = userActuallySpokeRecently
         ? 'Transition naturally - a brief acknowledgment of what they said, then smoothly introduce the next segment.'
-        : 'Transition smoothly to the next segment with a simple intro (e.g., "Alright, let's check the weather..."). DO NOT use acknowledgment phrases like "Awesome!", "Great!", or "Perfect!" since they were silent.';
+        : 'Transition smoothly to the next segment with a simple intro (e.g., "Alright, let\'s check the weather..."). DO NOT use acknowledgment phrases like "Awesome!", "Great!", or "Perfect!" since they were silent.';
 
       prompt += `
 ## Recent Conversation
