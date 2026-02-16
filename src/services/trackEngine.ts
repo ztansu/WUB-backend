@@ -499,28 +499,7 @@ Generate something FRESH and DIFFERENT.
 `;
     }
 
-    // Add conversation context if just exited conversation mode
-    if (this.state.justExitedConversation && this.state.recentConversation.length > 0) {
-      const convoText = this.state.recentConversation
-        .map(msg => `${msg.role === 'user' ? 'User' : 'You'}: "${msg.content}"`)
-        .join('\n');
 
-      // Check if the user actually spoke (last message is from user)
-      const lastMessage = this.state.recentConversation[this.state.recentConversation.length - 1];
-      const userActuallySpokeRecently = lastMessage?.role === 'user';
-
-      const transitionGuidance = userActuallySpokeRecently
-        ? 'Transition naturally - a brief acknowledgment of what they said, then smoothly introduce the next segment.'
-        : 'Transition smoothly to the next segment with a simple intro (e.g., "Alright, let\'s check the weather..."). DO NOT use acknowledgment phrases like "Awesome!", "Great!", or "Perfect!" since they were silent.';
-
-      prompt += `
-## Recent Conversation
-You just had a brief conversation with the user:
-${convoText}
-
-Now continue with the ${segment.type} segment. ${transitionGuidance}
-`;
-    }
 
     return prompt;
   }
