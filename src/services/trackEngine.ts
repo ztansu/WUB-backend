@@ -621,6 +621,17 @@ Be firm but caring. This is accountability, not cruelty.
 User's name: ${this.config.userName}`;
     } else {
       // Normal conversational response
+      // Check if we just said the greeting (look at conversation history, not just current segment)
+      const justSaidGreeting = this.state.conversationHistory.length <= 2 &&
+                               this.state.segmentHistory.some(h => h.segment === 'greeting');
+
+      const greetingGuidance = justSaidGreeting
+        ? `\n\nSPECIAL NOTE: You just said the greeting. The user is likely responding to your greeting.
+DO NOT say "good morning" or greet them again - you already did that.
+Just acknowledge what they said naturally and briefly (e.g., "Great to hear!" or "Awesome!" or "Ready to go!").
+Keep it SHORT - 1 sentence max.`
+        : '';
+
       systemPrompt = `# You are the ${persona.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())}
 
 ${personaTone}
@@ -629,7 +640,7 @@ You're in the middle of a wake-up session. The user just said something.
 Respond briefly - acknowledge what they said, answer if they asked a question.
 
 IMPORTANT: Do NOT ask follow-up questions. Do NOT try to keep the conversation going.
-Just respond and stop. The wake-up track will continue automatically.
+Just respond and stop. The wake-up track will continue automatically.${greetingGuidance}
 
 Current segment: ${currentSegment?.type || 'unknown'}
 User's name: ${this.config.userName}`;
