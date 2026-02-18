@@ -351,6 +351,16 @@ export class TrackEngine {
     return segment;
   }
 
+  // Peek at what segment comes after the current one (without advancing)
+  peekNextSegment(): SegmentConfig | null {
+    const nextIndex = this.state.currentSegmentIndex + 1;
+    for (let i = nextIndex; i < this.config.segmentOrder.length; i++) {
+      const seg = this.config.segmentOrder[i];
+      if (seg.enabled) return seg;
+    }
+    return null;
+  }
+
   // Advance to next segment
   advanceSegment(): boolean {
     const beforeIndex = this.state.currentSegmentIndex;
@@ -711,6 +721,12 @@ User's name: ${this.config.userName}`;
     while (this.getCurrentSegment()?.type === 'callToAction') {
       this.state.currentSegmentIndex++;
     }
+  }
+
+  // Update news data after deferred fetch completes
+  setNews(items: NewsItem[]) {
+    this.config.news = items;
+    console.log(`[TrackEngine] 📰 News data loaded (${items.length} items)`);
   }
 
   // Getters

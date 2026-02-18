@@ -11,6 +11,7 @@ import {
   WeatherData,
   CalendarEvent,
   NewsItem,
+  SegmentConfig,
 } from '../services/trackEngine';
 import { initOpenAI } from '../services/chainedSession';
 import { getNewsThemes, fetchNewsHeadlines } from '../services/grokNews';
@@ -24,6 +25,8 @@ let grokApiKey: string | undefined;
 interface SessionData {
   engine: TrackEngine;
   greeting?: { text: string; audioBuffer: Buffer };
+  // News fetch that may still be in-flight (resolved when news segment is needed)
+  pendingNews?: Promise<NewsItem[] | undefined>;
 }
 const sessions = new Map<string, SessionData>();
 
@@ -75,7 +78,7 @@ router.post('/session', async (req: Request, res: Response) => {
     const step1Time = Date.now() - overallStart;
     console.log(`[TrackAPI] ⏱️ Step 1 (Parse request): ${step1Time}ms`);
 
-    // Create engine immediately (don't wait for news)
+    // Create engine immediately (without news — news will load in background)
     const engineStart = Date.now();
     const config: TrackConfig = {
       personaId,
@@ -101,18 +104,22 @@ router.post('/session', async (req: Request, res: Response) => {
     const greetingPromise = engine.generateSegmentContent();
     console.log(`[TrackAPI] ⏱️ Greeting generation started`);
 
-    // Start news fetch in parallel (only if needed)
+    // Start news fetch in background (only if needed) — DON'T await it here.
+    // The news segment won't be reached for 2+ minutes of playback, so we
+    // let the fetch run while the user is listening to earlier segments.
     const newsStartTime = Date.now();
-    const newsPromise = (newsThemes && newsThemes.length > 0 && grokApiKey && !news)
+    const pendingNews: Promise<NewsItem[] | undefined> = (newsThemes && newsThemes.length > 0 && grokApiKey && !news)
       ? fetchNewsHeadlines(grokApiKey, newsThemes, 3)
           .then(newsResult => {
             const newsFetchTime = Date.now() - newsStartTime;
-            const newsItems = newsResult.headlines.map(h => ({
+            const newsItems: NewsItem[] = newsResult.headlines.map(h => ({
               headline: h.title,
-              summary: h.title,  // Use title as summary for now
+              summary: h.title,
               theme: h.category || newsThemes[0],
             }));
-            console.log(`[TrackAPI] ⏱️ News fetch completed: ${newsFetchTime}ms (${newsItems.length} items from ${newsResult.source})`);
+            console.log(`[TrackAPI] ⏱️ News fetch completed in background: ${newsFetchTime}ms (${newsItems.length} items from ${newsResult.source})`);
+            // Update the engine's news data now that it's available
+            engine.setNews(newsItems);
             return newsItems;
           })
           .catch(newsError => {
@@ -120,37 +127,20 @@ router.post('/session', async (req: Request, res: Response) => {
             return undefined;
           })
       : Promise.resolve(undefined);
-    console.log(`[TrackAPI] ⏱️ News fetch started (if enabled)`);
+    console.log(`[TrackAPI] ⏱️ News fetch kicked off in background (not blocking response)`);
 
-    // Wait for both greeting and news to complete
-    const parallelStart = Date.now();
-    const [greeting, newsItems] = await Promise.all([greetingPromise, newsPromise]);
-    console.log(`[TrackAPI] ⏱️ Step 3 (Parallel: Greeting + News): ${Date.now() - parallelStart}ms`);
-    console.log(`[TrackAPI] ⏱️   - Greeting generation: ${Date.now() - greetingStart}ms`);
+    // Only wait for the greeting — news loads in background
+    const greeting = await greetingPromise;
+    console.log(`[TrackAPI] ⏱️ Step 3 (Greeting only): ${Date.now() - greetingStart}ms`);
 
-    // Update config with fetched news if we got any
-    if (newsItems && newsItems.length > 0) {
-      // Re-create engine with news data
-      const updatedConfig: TrackConfig = {
-        ...config,
-        news: newsItems,
-      };
-      const updatedEngine = new TrackEngine(updatedConfig);
-      // Re-generate greeting with news context (optional - greeting doesn't use news anyway)
-      // For now just use the original greeting since news doesn't affect it
-      sessions.set(state.sessionId, {
-        engine: updatedEngine,
-        greeting,
-      });
-    } else {
-      sessions.set(state.sessionId, {
-        engine,
-        greeting,
-      });
-    }
+    sessions.set(state.sessionId, {
+      engine,
+      greeting,
+      pendingNews,
+    });
 
     const totalTime = Date.now() - overallStart;
-    console.log(`[TrackAPI] ⏱️ TOTAL /session time: ${totalTime}ms`);
+    console.log(`[TrackAPI] ⏱️ TOTAL /session time: ${totalTime}ms (news still loading in background)`);
     console.log(`[TrackAPI] Session ${state.sessionId} ready with pre-generated greeting`);
 
     res.json({
@@ -191,6 +181,22 @@ router.post('/session/:id/next', async (req: Request, res: Response) => {
     const sessionData = sessions.get(id);
     if (!sessionData) {
       return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // If news is still loading and the next segment might need it, wait now.
+    // The news fetch runs in the background during earlier segments; by the
+    // time the news segment is reached it's almost always already done.
+    // We check both the next segment and the one after (conversation mode
+    // exit can skip to the segment after next).
+    if (sessionData.pendingNews) {
+      const nextSeg = sessionData.engine.peekNextSegment();
+      const currentSeg = sessionData.engine.getCurrentSegment();
+      if (currentSeg?.type === 'news' || nextSeg?.type === 'news') {
+        console.log(`[TrackAPI] ⏳ News segment approaching — waiting for background fetch...`);
+        await sessionData.pendingNews;
+        sessionData.pendingNews = undefined; // Already resolved, clean up
+        console.log(`[TrackAPI] ✅ News data ready`);
+      }
     }
 
     const result = await sessionData.engine.handleSilence();
